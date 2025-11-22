@@ -76,16 +76,14 @@ export const RepordtAndAnalytics = () => {
   // Pie Chart 1
   // -----------------------------
   const pieChart1: PieChartProps = {
-    heading: "Revenue Breakdown",
+    heading: "Active Vs Inactive",
     data: [
-      { label: "Electronics", value: 45 },
-      { label: "Fashion", value: 30 },
-      { label: "Grocery", value: 25 },
+      { label: "Active", value: 80 },
+      { label: "Inactive", value: 20 },
     ],
     color: [
-      { label: "Electronics", hex: "#3B82F6" },
-      { label: "Fashion", hex: "#F97316" },
-      { label: "Grocery", hex: "#10B981" },
+      { label: "Active", hex: "#3B82F6" },
+      { label: "Inactive", hex: "#F97316" },
     ],
   };
 
@@ -93,16 +91,14 @@ export const RepordtAndAnalytics = () => {
   // Pie Chart 2
   // -----------------------------
   const pieChart2: PieChartProps = {
-    heading: "User Types",
+    heading: "Strip Vs Cash",
     data: [
-      { label: "Admin", value: 20 },
-      { label: "Client", value: 50 },
-      { label: "Landscaper", value: 30 },
+      { label: "Strip", value: 60 },
+      { label: "Cash", value: 40 },
     ],
     color: [
-      { label: "Admin", hex: "#F87171" },
-      { label: "Client", hex: "#60A5FA" },
-      { label: "Landscaper", hex: "#34D399" },
+      { label: "Strip", hex: "#F87171" },
+      { label: "Cash", hex: "#60A5FA" },
     ],
   };
 

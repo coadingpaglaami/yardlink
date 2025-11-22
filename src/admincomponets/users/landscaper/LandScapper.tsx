@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
 import { Label } from "@/components/ui/label";
+import { Pagination } from "@/admincomponets/reusable/Pagination";
 
 interface LandscaperData {
   profileImage?: string;
@@ -224,37 +225,11 @@ export const Landscaper = () => {
       </Card>
 
       {/* Pagination */}
-      <div className="flex justify-end items-center gap-2 mt-4">
-        <Button
-          size="icon"
-          variant="outline"
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage((prev) => prev - 1)}
-        >
-          <ChevronLeft />
-        </Button>
-        {Array.from({ length: totalPages }).map((_, i) => {
-          const page = i + 1;
-          return (
-            <Button
-              key={page}
-              size="sm"
-              variant={page === currentPage ? "default" : "outline"}
-              onClick={() => setCurrentPage(page)}
-            >
-              {page}
-            </Button>
-          );
-        })}
-        <Button
-          size="icon"
-          variant="outline"
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage((prev) => prev + 1)}
-        >
-          <ChevronRight />
-        </Button>
-      </div>
+      <Pagination
+        page={currentPage}
+        totalPages={totalPages}
+        onChange={(p) => setCurrentPage(p)}
+      />
 
       {/* Message Dialog */}
       {messageDialog !== null && (

@@ -9,6 +9,11 @@ export function proxy(request: NextRequest) {
     response.headers.set("pathname", pathname);
     return response;
   }
+   // Redirect /admin/users to /admin/landscaper
+  if (pathname === "/admin/users" || pathname === "/admin/users/") {
+    return NextResponse.redirect(new URL("/admin/landscaper", request.url));
+  }
+
 
   // If already on /admin → allow the page to load
   const res = NextResponse.next();

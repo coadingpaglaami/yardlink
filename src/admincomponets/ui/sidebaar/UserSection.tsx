@@ -4,9 +4,11 @@ import { useState } from "react";
 import { UserIcon, ChevronDown, UserCogIcon, LogOut } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 export const UserSection = () => {
   const [user] = useState({ name: "Hasan", photo: "" }); // server can pass props if needed
+  const router = useRouter();
 
   return (
     <DropdownMenu>
@@ -23,7 +25,7 @@ export const UserSection = () => {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent className="w-40">
-        <DropdownMenuItem className="flex items-center gap-2 border-b border-gray-200">
+        <DropdownMenuItem className="flex items-center gap-2 border-b border-gray-200" onClick={() => router.push('/admin/profile')}>
           <UserCogIcon className="w-4 h-4" /> Profile
         </DropdownMenuItem>
         <DropdownMenuItem className="flex items-center gap-2">

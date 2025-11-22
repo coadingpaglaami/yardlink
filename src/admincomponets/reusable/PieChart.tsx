@@ -40,7 +40,7 @@ export const PieChart = ({ data, heading, color }: PieChartProps) => {
                 cy="50%"
                 innerRadius={55} // DONUT CENTER
                 outerRadius={90}
-                paddingAngle={3}
+                
               >
                 {data.map((_, index) => (
                   <Cell key={index} fill={color[index]?.hex || "#000"} />

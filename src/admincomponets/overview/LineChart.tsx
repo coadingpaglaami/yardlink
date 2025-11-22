@@ -22,6 +22,7 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  CartesianGrid,
 } from "recharts";
 
 export interface LineChartData {
@@ -38,7 +39,7 @@ export const LineChart = ({ data, selectData }: LineChartProps) => {
     <Card className="w-full h-full p-4">
       {/* Top: Heading + Select */}
       <CardHeader className="flex flex-row items-center justify-between pb-6">
-        <CardTitle className="text-lg font-semibold">Line Chart</CardTitle>
+        <CardTitle className="text-lg font-semibold">Revenue Overview</CardTitle>
 
         <Select>
           <SelectTrigger
@@ -63,6 +64,7 @@ export const LineChart = ({ data, selectData }: LineChartProps) => {
         <div className="w-full h-full">
           <ResponsiveContainer width="100%" height="100%">
             <ReLineChart data={data}>
+                <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
               <XAxis dataKey="label" />
               <YAxis />
               <Tooltip />

@@ -26,14 +26,12 @@ export const OverView = () => {
   const pieChartData: PieChartProps = {
     heading: "Category Distribution",
     data: [
-      { label: "Electronics", value: 45 },
-      { label: "Fashion", value: 30 },
-      { label: "Grocery", value: 25 },
+      { label: "Pro", value: 65 },
+      { label: "Basic", value: 35 },
     ],
     color: [
-      { label: "Electronics", hex: "#3B82F6" },
-      { label: "Fashion", hex: "#F97316" },
-      { label: "Grocery", hex: "#10B981" },
+      { label: "Pro", hex: "#3B82F6" },
+      { label: "Basic", hex: "#F97316" },
     ],
   };
 

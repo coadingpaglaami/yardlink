@@ -57,12 +57,12 @@ export const BarChart = ({ heading, data, selectData }: BarChartProps) => {
       <CardContent>
         <div className="w-full h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <ReBarChart data={data}>
+            <ReBarChart data={data} >
               <XAxis dataKey="label" />
               <YAxis />
               <Tooltip />
 
-              <Bar dataKey="value" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="value" radius={[6, 6, 0, 0]} fill ="#164D8D" />
             </ReBarChart>
           </ResponsiveContainer>
         </div>

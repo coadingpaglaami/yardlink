@@ -1,78 +1,110 @@
-import { SubscriptionManager } from "framer-motion";
+"use client";
 import { Subscription } from "./Subscription";
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 
 type AddPlanProps = {
   onAdd: (plan: Subscription) => void;
   onClose: () => void;
 };
 
-export const AddPlan=()=>{
-const [name, setName] = useState("");
-
+export const AddPlan = ({ onAdd, onClose }: AddPlanProps) => {
+  const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [startDate, setStartDate] = useState<string | undefined>(undefined);
-  const [endDate, setEndDate] = useState<string | undefined>(undefined);
-  const [duration, setDuration] = useState<number | undefined>(6);
-  const [price, setPrice] = useState<number | undefined>(0);
-  const [discount, setDiscount] = useState<number | undefined>(0);
+
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+
+  const [duration, setDuration] = useState<number>(6);
+  const [price, setPrice] = useState<number>(0);
+  const [discount, setDiscount] = useState<number>(0);
 
   const handleAdd = () => {
     if (!name) return;
+
     const plan: Subscription = {
       name,
       description,
-      duration: duration ?? 0,
-      price: price ?? 0,
-      discount: discount ?? 0,
-      startDate,
-      endDate,
+      duration,
+      price,
+      discount,
+      startDate: startDate ? startDate.toISOString() : undefined,
+      endDate: endDate ? endDate.toISOString() : undefined,
     };
+
     onAdd(plan);
     onClose();
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <Label htmlFor="plan-name">Plan Name</Labe>
-          <Input id="plan-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Pro 6m" />
-        </div>
+    <div className="space-y-5">
+
+      {/* Plan Name */}
+      <div className="flex items-center gap-1">
+        <Label htmlFor="plan-name" className="whitespace-nowrap">
+          Plan Name
+        </Label>
+        <Input
+          id="plan-name"
+          className="bg-primary/20"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Pro 6m"
+        />
       </div>
 
-      <div>
+      {/* Description */}
+      <div className="flex items-start gap-2">
         <Label htmlFor="plan-desc">Description</Label>
-        <textarea id="plan-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} />
+        <textarea
+          id="plan-desc"
+          value={description}
+          placeholder="Description"
+          onChange={(e) => setDescription(e.target.value)}
+          rows={4}
+          className="w-full border rounded-md p-2 bg-primary/20"
+        />
       </div>
 
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <Label>Start Date</Label>
-          <DatePicker
-            value={startDate}
-            onChange={(d: any) => setStartDate(d ? String(d) : undefined)}
-            className="w-full"
-          />
+      {/* Dates */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        {/* Start Date */}
+        <div className="flex items-center gap-2">
+          <Label className="whitespace-nowrap">Start Date</Label>
+          <div className="flex-1  rounded-md p-1">
+            <DatePicker date={startDate} setDate={setStartDate} />
+          </div>
         </div>
-        <div className="flex-1">
-          <Label>End Date</Label>
-          <DatePicker
-            value={endDate}
-            onChange={(d: any) => setEndDate(d ? String(d) : undefined)}
-            className="w-full"
-          />
+
+        {/* End Date */}
+        <div className="flex items-center gap-2">
+          <Label className="whitespace-nowrap">End Date</Label>
+          <div className="flex-1 rounded-md p-1">
+            <DatePicker date={endDate} setDate={setEndDate} />
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-4">
-        <div className="flex-1">
+      {/* Duration - Price */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex items-center gap-1">
           <Label>Duration</Label>
-          <Select value={String(duration ?? "")} onValueChange={(v) => setDuration(Number(v))}>
-            <SelectTrigger className="w-full">
-              <span>{duration ?? ""} months</span>
+          <Select
+            value={String(duration)}
+            onValueChange={(v) => setDuration(Number(v))}
+          >
+            <SelectTrigger className="w-full bg-primary/20">
+              {duration} months
             </SelectTrigger>
             <SelectContent>
               {[1, 3, 6, 12, 24].map((d) => (
@@ -84,29 +116,31 @@ const [name, setName] = useState("");
           </Select>
         </div>
 
-        <div className="flex-1">
-          <Label>Price (USD)</Label>
+        <div className="flex items-center gap-1">
+          <Label className="whitespace-nowrap">Price (USD)</Label>
           <Input
             type="number"
-            value={price ?? ""}
+            value={price}
             onChange={(e) => setPrice(Number(e.target.value))}
             placeholder="0"
+            className="bg-primary/20"
           />
         </div>
       </div>
 
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <Label>Discount (%)</Label>
-          <Input
-            type="number"
-            value={discount ?? ""}
-            onChange={(e) => setDiscount(Number(e.target.value))}
-            placeholder="0"
-          />
-        </div>
+      {/* Discount */}
+      <div className="flex items-center gap-1">
+        <Label className="whitespace-nowrap">Discount (%)</Label>
+        <Input
+          type="number"
+          value={discount}
+          onChange={(e) => setDiscount(Number(e.target.value))}
+          placeholder="0"
+          className="bg-primary/20"
+        />
       </div>
 
+      {/* Buttons */}
       <div className="flex justify-center gap-4 mt-4">
         <Button variant="outline" onClick={onClose}>
           Cancel

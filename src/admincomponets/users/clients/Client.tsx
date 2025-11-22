@@ -1,15 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Mail as Email,
-  Play,
-  Pause,
-  Trash,
-  ChevronLeft,
-  ChevronRight,
-  Search,
-} from "lucide-react";
+import { Mail as Email, Play, Pause, Trash, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -30,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import Image from "next/image";
 import { Label } from "@/components/ui/label";
+import { Pagination } from "@/admincomponets/reusable/Pagination";
 
 interface LandscaperData {
   profileImage?: string;
@@ -71,19 +64,19 @@ export const Client = () => {
   const [search, setSearch] = useState("");
 
   // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
+  const [page, setPage] = useState(1);
   const itemsPerPage = 10;
 
   const filteredData = demoData.filter(
     (item) =>
-      (item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.email.toLowerCase().includes(search.toLowerCase()))
+      item.name.toLowerCase().includes(search.toLowerCase()) ||
+      item.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const currentData = filteredData.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
+  const pageData = filteredData.slice(
+    (page - 1) * itemsPerPage,
+    page * itemsPerPage
   );
 
   return (
@@ -119,11 +112,9 @@ export const Client = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentData.map((item, index) => (
+              {pageData.map((item, index) => (
                 <TableRow key={item.id} className="border-none">
-                  <TableCell>
-                    {(currentPage - 1) * itemsPerPage + index + 1}
-                  </TableCell>
+                  <TableCell>{(page - 1) * itemsPerPage + index + 1}</TableCell>
                   <TableCell>
                     {item.profileImage ? (
                       <Image
@@ -192,37 +183,11 @@ export const Client = () => {
       </Card>
 
       {/* Pagination */}
-      <div className="flex justify-end items-center gap-2 mt-4">
-        <Button
-          size="icon"
-          variant="outline"
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage((prev) => prev - 1)}
-        >
-          <ChevronLeft />
-        </Button>
-        {Array.from({ length: totalPages }).map((_, i) => {
-          const page = i + 1;
-          return (
-            <Button
-              key={page}
-              size="sm"
-              variant={page === currentPage ? "default" : "outline"}
-              onClick={() => setCurrentPage(page)}
-            >
-              {page}
-            </Button>
-          );
-        })}
-        <Button
-          size="icon"
-          variant="outline"
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage((prev) => prev + 1)}
-        >
-          <ChevronRight />
-        </Button>
-      </div>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onChange={(p) => setPage(p)}
+      />
 
       {/* Message Dialog */}
       {messageDialog !== null && (
