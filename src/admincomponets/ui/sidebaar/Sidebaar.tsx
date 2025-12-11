@@ -29,7 +29,9 @@ export const SideBaar = () => {
             width={100}
             className="w-10 h-10"
           />
-          <span className="mt-2 text-white text-sm font-semibold">YardLink</span>
+          <span className="mt-2 text-white text-sm font-semibold">
+            YardLink
+          </span>
         </div>
 
         <h1 className="mt-4 text-2xl font-bold text-[#38593F]">YardLink</h1>
@@ -153,5 +155,3 @@ export const SideBaar = () => {
     </div>
   );
 };
-
-
