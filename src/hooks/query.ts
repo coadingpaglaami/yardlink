@@ -3,7 +3,7 @@ import {
   GetUsersParams,
   LoginCredentials,
   UserSummaryResponse,
-} from "@/interfaces/User";
+} from "@/interfaces/user";
 import { Login, UserList } from "@/lib/axios/api";
 import { setTokens } from "@/lib/cookies";
 import {
