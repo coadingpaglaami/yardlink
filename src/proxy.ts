@@ -1,22 +1,37 @@
 import { NextResponse, NextRequest } from "next/server";
 
 export function proxy(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
+const { pathname } = request.nextUrl;
 
-  // Prevent infinite redirect loop
+  const accessToken = request.cookies.get("accessToken")?.value;
+
+  // Allow public routes
+  if (pathname.startsWith("/login")) {
+    return NextResponse.next();
+  }
+
+  // Protect admin routes
+  if (pathname.startsWith("/admin")) {
+    if (!accessToken) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  }
+
+  // Redirect root → /admin
   if (pathname === "/") {
-    const response = NextResponse.redirect(new URL("/admin", request.url));
-    response.headers.set("pathname", pathname);
-    return response;
+    return NextResponse.redirect(new URL("/admin", request.url));
   }
-   // Redirect /admin/users to /admin/landscaper
+
+  // Redirect /admin/users → /admin/landscaper
   if (pathname === "/admin/users" || pathname === "/admin/users/") {
-    return NextResponse.redirect(new URL("/admin/landscaper", request.url));
+    return NextResponse.redirect(
+      new URL("/admin/landscaper", request.url)
+    );
   }
 
-
-  // If already on /admin → allow the page to load
-  const res = NextResponse.next();
-  res.headers.set("pathname", pathname);
-  return res;
+  return NextResponse.next();
 }
+
+export const config = {
+  matcher: ["/", "/admin/:path*", "/login"],
+};

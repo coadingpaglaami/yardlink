@@ -7,8 +7,6 @@ import {
   Pause,
   Trash,
   Filter,
-  ChevronLeft,
-  ChevronRight,
   Search,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";

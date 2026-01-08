@@ -2,9 +2,15 @@
 
 import { useState } from "react";
 import { UserIcon, ChevronDown, UserCogIcon, LogOut } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { clearTokens } from "@/lib/cookies";
 
 export const UserSection = () => {
   const [user] = useState({ name: "Hasan", photo: "" }); // server can pass props if needed
@@ -14,7 +20,13 @@ export const UserSection = () => {
     <DropdownMenu>
       <DropdownMenuTrigger className="w-full flex items-center gap-2 p-2 rounded-md hover:bg-gray-100 cursor-pointer">
         {user.photo ? (
-          <Image src={user.photo} width={100} height={100} className="w-8 h-8 rounded-full" alt="user" />
+          <Image
+            src={user.photo}
+            width={100}
+            height={100}
+            className="w-8 h-8 rounded-full"
+            alt="user"
+          />
         ) : (
           <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white">
             {user.name[0]}
@@ -25,10 +37,19 @@ export const UserSection = () => {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent className="w-40">
-        <DropdownMenuItem className="flex items-center gap-2 border-b border-gray-200" onClick={() => router.push('/admin/profile')}>
+        <DropdownMenuItem
+          className="flex items-center gap-2 border-b border-gray-200"
+          onClick={() => router.push("/admin/profile")}
+        >
           <UserCogIcon className="w-4 h-4" /> Profile
         </DropdownMenuItem>
-        <DropdownMenuItem className="flex items-center gap-2">
+        <DropdownMenuItem
+          className="flex items-center gap-2"
+          onClick={() => {
+            clearTokens();
+            router.push("/login");
+          }}
+        >
           <LogOut className="w-4 h-4" /> Logout
         </DropdownMenuItem>
       </DropdownMenuContent>
