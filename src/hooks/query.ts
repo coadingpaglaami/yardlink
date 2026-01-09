@@ -4,7 +4,7 @@ import {
   LoginCredentials,
   UserSummaryResponse,
 } from "@/interfaces/user";
-import { Login, UserList } from "@/lib/axios/api";
+import { DeleteUser, Login, UserList } from "@/lib/axios/api";
 import { setTokens } from "@/lib/cookies";
 import {
   useMutation,
@@ -38,3 +38,12 @@ export const useGetUsersQuery = (
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
+
+export const useDeleteUserMutation = ()=>{
+  return useMutation({
+    mutationKey: ['deleteUser'],
+    mutationFn: (userId: number) => {
+      return DeleteUser(userId);
+    }
+  })
+}

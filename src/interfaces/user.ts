@@ -18,32 +18,36 @@ export interface LoginCredentials {
   email: string;
   password: string;
 }
-
+export type LandscaperPlan = "BasicPlan" | "ProPlan";
 
 export interface UserSummaryResponse {
   status: string;
-  summary: {
-    total_users: number;
-    total_clients: number;
-    total_landscapers: number;
-    daily_active_users: number;
-  };
+  summary: UserSummary;
   data: User[];
 }
 
-interface User {
+export interface UserSummary {
+  total_users: number;
+  total_clients: number;
+  total_landscapers: number;
+  basic_landscapers: number;
+  pro_landscapers: number;
+  daily_active_users: number;
+}
+
+export interface User {
   id: number;
   name: string;
   email: string;
   address: string | null;
   phone: string | null;
-  role: string;
   is_active: boolean;
-  date_joined: string; // ISO 8601 format
+  date_joined: string; // ISO 8601
+  landscaper_plan: LandscaperPlan | null;
 }
 
 export interface GetUsersParams {
-  role?: string;
+  role?: 'client' | 'landscaper' | 'worker';
   search?: string;
-  subscription?: string;
+  plan?: LandscaperPlan;
 }

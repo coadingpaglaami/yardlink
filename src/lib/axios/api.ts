@@ -3,7 +3,7 @@ import {
   GetUsersParams,
   LoginCredentials,
   UserSummaryResponse,
-} from "@/interfaces/User";
+} from "@/interfaces/user";
 import { axiosInstance } from "./axios.instance";
 
 const FORM_DATA_HEADERS = {
@@ -28,3 +28,6 @@ export const UserList = async (
   return data;
 };
 
+export const DeleteUser = async (userId: number): Promise<void> => {
+  return await axiosInstance.delete(`${ADMIN}/delete-user/${userId}/`);
+};

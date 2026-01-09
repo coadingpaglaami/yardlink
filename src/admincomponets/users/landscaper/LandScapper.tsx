@@ -33,32 +33,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import Image from "next/image";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/admincomponets/reusable/Pagination";
-
-interface LandscaperData {
-  profileImage?: string;
-  id: string;
-  name: string;
-  email: string;
-  subStatus: "Pro" | "Basic" | "All";
-  stripStatus: "Linkend" | "Not Linked";
-  lastActive: string;
-  isPaused: boolean;
-}
-
-// Generate 50+ demo data dynamically
-const demoData: LandscaperData[] = Array.from({ length: 55 }).map((_, i) => ({
-  profileImage: "",
-  id: `#${12543 + i}`,
-  name: `User ${i + 1}`,
-  email: `user${i + 1}@example.com`,
-  subStatus: i % 3 === 0 ? "Pro" : i % 3 === 1 ? "Basic" : "All",
-  stripStatus: i % 2 === 0 ? "Linkend" : "Not Linked",
-  lastActive: i % 2 === 0 ? "Today 4:40 pm" : `${i} hours ago`,
-  isPaused: i % 4 === 0,
-}));
+import { Skeleton } from "@/components/ui/skeleton";
+import { useDeleteUserMutation, useGetUsersQuery } from "@/hooks";
+import type { GetUsersParams, LandscaperPlan } from "@/interfaces/user";
 
 const profileColors = [
   "bg-red-500",
@@ -75,24 +54,58 @@ export const Landscaper = () => {
     index: number;
   } | null>(null);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"Pro" | "Basic" | "All">("All");
+  const [filter, setFilter] = useState<"BasicPlan" | "ProPlan" | "All">("All");
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const filteredData = demoData.filter(
-    (item) =>
-      (filter === "All" || item.subStatus === filter) &&
-      (item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.email.toLowerCase().includes(search.toLowerCase()))
-  );
+  // API Params
+  const params: GetUsersParams = {
+    role: "landscaper",
+    search: search || undefined,
+    plan: filter !== "All" ? (filter as LandscaperPlan) : undefined,
+  };
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const currentData = filteredData.slice(
+  const {
+    data: apiData,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetUsersQuery(params);
+  const deleteUserMutation = useDeleteUserMutation();
+
+  const users = apiData?.data || [];
+
+  const totalPages = Math.ceil(users.length / itemsPerPage);
+  const currentData = users.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  const handleConfirmDelete = (userId: number) => {
+    if (!confirmDialog || confirmDialog.type !== "delete") return;
+
+    deleteUserMutation.mutate(userId, {
+      onSuccess: () => {
+        refetch(); // refresh list
+        setConfirmDialog(null); // close dialog
+      },
+      onError: (error) => {
+        console.error("Delete failed:", error);
+      },
+    });
+  };
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <p className="text-red-500">
+          Error loading landscapers. Please try again.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5 py-16 md:px-6 px-2">
@@ -116,18 +129,20 @@ export const Landscaper = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-32">
-            {(["Pro", "Basic", "All"] as const).map((status, index, arr) => (
-              <DropdownMenuItem
-                key={status}
-                onClick={() => {
-                  setFilter(status);
-                  setCurrentPage(1);
-                }}
-                className={index === arr.length - 1 ? "border-b" : ""}
-              >
-                {status}
-              </DropdownMenuItem>
-            ))}
+            {(["ProPlan", "BasicPlan", "All"] as const).map(
+              (status, index, arr) => (
+                <DropdownMenuItem
+                  key={status}
+                  onClick={() => {
+                    setFilter(status);
+                    setCurrentPage(1);
+                  }}
+                  className={index === arr.length - 1 ? "border-b" : ""}
+                >
+                  {status}
+                </DropdownMenuItem>
+              )
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -139,84 +154,111 @@ export const Landscaper = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Serial</TableHead>
-                <TableHead>Profile</TableHead>
                 <TableHead>ID</TableHead>
+                <TableHead>Profile</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Subscription</TableHead>
-                <TableHead>Stripe</TableHead>
-                <TableHead>Last Active</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Address</TableHead>
                 <TableHead>Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentData.map((item, index) => (
-                <TableRow key={item.id} className="border-none">
-                  <TableCell>
-                    {(currentPage - 1) * itemsPerPage + index + 1}
-                  </TableCell>
-                  <TableCell>
-                    {item.profileImage ? (
-                      <Image
-                        src={item.profileImage}
-                        alt={item.name}
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                          profileColors[index % profileColors.length]
-                        }`}
-                      >
-                        {item.name[0].toUpperCase()}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>{item.id}</TableCell>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>{item.email}</TableCell>
-                  <TableCell>{item.subStatus}</TableCell>
-                  <TableCell
-                    className={
-                      item.stripStatus === "Linkend"
-                        ? "text-blue-500 font-medium"
-                        : "text-red-500 font-medium"
-                    }
-                  >
-                    {item.stripStatus}
-                  </TableCell>
-                  <TableCell>{item.lastActive}</TableCell>
-                  <TableCell className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setMessageDialog(index)}
-                    >
-                      <Email className="w-4 h-4 text-blue-500" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setConfirmDialog({ type: "pause", index })}
-                    >
-                      {item.isPaused ? (
-                        <Play className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <Pause className="w-4 h-4 text-yellow-500" />
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() =>
-                        setConfirmDialog({ type: "delete", index })
-                      }
-                    >
-                      <Trash className="w-4 h-4 text-red-500" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {isLoading
+                ? Array.from({ length: itemsPerPage }).map((_, index) => (
+                    <TableRow key={index} className="border-none">
+                      <TableCell>
+                        <Skeleton className="h-4 w-8" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-16" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-32" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-48" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-20" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-24" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-40" />
+                      </TableCell>
+                      <TableCell className="flex gap-2">
+                        <Skeleton className="h-8 w-8 rounded" />
+                        <Skeleton className="h-8 w-8 rounded" />
+                        <Skeleton className="h-8 w-8 rounded" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                : currentData.map((item, index) => (
+                    <TableRow key={item.id} className="border-none">
+                      <TableCell>
+                        {(currentPage - 1) * itemsPerPage + index + 1}
+                      </TableCell>
+                      <TableCell>{item.id}</TableCell>
+                      <TableCell>
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
+                            profileColors[index % profileColors.length]
+                          }`}
+                        >
+                          {item.name[0].toUpperCase()}
+                        </div>
+                      </TableCell>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell>{item.email}</TableCell>
+                      <TableCell>{item.landscaper_plan || "None"}</TableCell>
+                      <TableCell>{item.phone || "N/A"}</TableCell>
+                      <TableCell>
+                        {item.address
+                          ? `${item.address.slice(0, 20)}${
+                              item.address.length > 20 ? "..." : ""
+                            }`
+                          : "N/A"}
+                      </TableCell>
+                      <TableCell className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setMessageDialog(index)}
+                        >
+                          <Email className="w-4 h-4 text-blue-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setConfirmDialog({ type: "pause", index })
+                          }
+                        >
+                          {item.is_active ? (
+                            <Pause className="w-4 h-4 text-yellow-500" />
+                          ) : (
+                            <Play className="w-4 h-4 text-green-500" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setConfirmDialog({ type: "delete", index });
+                            handleConfirmDelete(item.id);
+                          }}
+                        >
+                          <Trash className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
             </TableBody>
           </Table>
         </CardContent>
@@ -277,9 +319,9 @@ export const Landscaper = () => {
             <DialogHeader>
               <DialogTitle className="text-center">
                 {confirmDialog.type === "pause"
-                  ? demoData[confirmDialog.index].isPaused
-                    ? "Play this landscaper?"
-                    : "Pause this landscaper?"
+                  ? currentData[confirmDialog.index].is_active
+                    ? "Pause this landscaper?"
+                    : "Activate this landscaper?"
                   : "Delete this landscaper?"}
               </DialogTitle>
             </DialogHeader>
@@ -295,9 +337,9 @@ export const Landscaper = () => {
                 variant="red"
               >
                 {confirmDialog.type === "pause"
-                  ? demoData[confirmDialog.index].isPaused
-                    ? "Play"
-                    : "Pause"
+                  ? currentData[confirmDialog.index].is_active
+                    ? "Pause"
+                    : "Activate"
                   : "Delete"}
               </Button>
             </DialogFooter>
