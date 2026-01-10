@@ -45,6 +45,8 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import { UseGetSubscriptionPlan } from "@/hooks";
+import { SubscriptionPlan } from "@/interfaces/subscripion";
 
 /* --------------------
    Types / Interfaces
@@ -146,6 +148,7 @@ export const Subscriptions = () => {
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
 
+const subscriptionPlan = UseGetSubscriptionPlan();
   const [data, setData] = useState<SubscriptionItem[]>(demoSubscriptions);
 
   // dialogs state
@@ -161,7 +164,7 @@ export const Subscriptions = () => {
   } | null>(null);
 
   // plans state (for Manage/Add)
-  const [plans, setPlans] = useState<Subscription[]>(
+  const [plans, setPlans] = useState<Subscription[] >(
     Array.from(new Set(data.map((d) => d.subscription.name))).map((name) => {
       const d = data.find((x) => x.subscription.name === name)!;
       return { ...d.subscription };
@@ -189,7 +192,7 @@ export const Subscriptions = () => {
     setPlans((p) => [plan, ...p]);
   };
 
-  const handleRemovePlans = (selected: Subscription[]) => {
+  const handleRemovePlans = (selected: Subscription[] | SubscriptionPlan[]) => {
     setPlans((p) => p.filter((pl) => !selected.includes(pl)));
   };
 
@@ -288,7 +291,7 @@ export const Subscriptions = () => {
                 <DialogTitle>Manage Plans</DialogTitle>
               </DialogHeader>
               <ManagePlan
-                plans={plans}
+                plans={subscriptionPlan.data || []}
                 onRemove={handleRemovePlans}
                 onClose={() => setManagePlanOpen(false)}
               />

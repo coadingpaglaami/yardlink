@@ -1,14 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Mail as Email,
-  Play,
-  Pause,
-  Trash,
-  Filter,
-  Search,
-} from "lucide-react";
+import { Play, Pause, Trash, Filter, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -33,7 +26,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Label } from "@/components/ui/label";
 import { Pagination } from "@/admincomponets/reusable/Pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteUserMutation, useGetUsersQuery } from "@/hooks";
@@ -48,7 +40,6 @@ const profileColors = [
 ];
 
 export const Landscaper = () => {
-  const [messageDialog, setMessageDialog] = useState<null | number>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     type: "pause" | "delete";
     index: number;
@@ -116,7 +107,10 @@ export const Landscaper = () => {
           <Input
             placeholder="Search"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
             className="pl-10"
           />
         </div>
@@ -229,13 +223,6 @@ export const Landscaper = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setMessageDialog(index)}
-                        >
-                          <Email className="w-4 h-4 text-blue-500" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
                           onClick={() =>
                             setConfirmDialog({ type: "pause", index })
                           }
@@ -251,7 +238,6 @@ export const Landscaper = () => {
                           size="icon"
                           onClick={() => {
                             setConfirmDialog({ type: "delete", index });
-                            handleConfirmDelete(item.id);
                           }}
                         >
                           <Trash className="w-4 h-4 text-red-500" />
@@ -272,45 +258,6 @@ export const Landscaper = () => {
       />
 
       {/* Message Dialog */}
-      {messageDialog !== null && (
-        <Dialog open onOpenChange={() => setMessageDialog(null)}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="text-center">Send Message</DialogTitle>
-            </DialogHeader>
-
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col">
-                <Label htmlFor="subject" className="text-sm font-medium mb-3">
-                  Subject
-                </Label>
-                <Input id="subject" placeholder="Enter subject" />
-              </div>
-
-              <div className="flex flex-col">
-                <Label htmlFor="message" className="text-sm font-medium mb-3 ">
-                  Message
-                </Label>
-                <Input
-                  id="message"
-                  placeholder="Enter message"
-                  className="h-24 placeholder:items-start"
-                />
-              </div>
-            </div>
-
-            <DialogFooter className="flex justify-center mt-4">
-              <Button
-                variant={"dark_green"}
-                className="block mx-auto"
-                onClick={() => setMessageDialog(null)}
-              >
-                Send
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
 
       {/* Confirm Dialog */}
       {confirmDialog && (
@@ -332,6 +279,9 @@ export const Landscaper = () => {
               <Button
                 onClick={() => {
                   // handle action
+                  if (confirmDialog.type === "delete") {
+                    handleConfirmDelete(currentData[confirmDialog.index].id);
+                  }
                   setConfirmDialog(null);
                 }}
                 variant="red"

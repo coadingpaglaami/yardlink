@@ -5,6 +5,7 @@ import {
   UserSummaryResponse,
 } from "@/interfaces/user";
 import { axiosInstance } from "./axios.instance";
+import { SubscriptionPlan } from "@/interfaces/subscripion";
 
 const FORM_DATA_HEADERS = {
   "Content-Type": "multipart/form-data",
@@ -31,3 +32,8 @@ export const UserList = async (
 export const DeleteUser = async (userId: number): Promise<void> => {
   return await axiosInstance.delete(`${ADMIN}/delete-user/${userId}/`);
 };
+
+export const SuscriptionPlan = async ():Promise<SubscriptionPlan[]>=>{
+  const { data } = await axiosInstance.get("plans/");
+  return data;
+}

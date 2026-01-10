@@ -1,10 +1,11 @@
+import { SubscriptionPlan } from "@/interfaces/subscripion";
 import {
   AuthResponse,
   GetUsersParams,
   LoginCredentials,
   UserSummaryResponse,
 } from "@/interfaces/user";
-import { DeleteUser, Login, UserList } from "@/lib/axios/api";
+import { DeleteUser, Login, SuscriptionPlan, UserList } from "@/lib/axios";
 import { setTokens } from "@/lib/cookies";
 import {
   useMutation,
@@ -39,11 +40,22 @@ export const useGetUsersQuery = (
   });
 };
 
-export const useDeleteUserMutation = ()=>{
+export const useDeleteUserMutation = () => {
   return useMutation({
-    mutationKey: ['deleteUser'],
+    mutationKey: ["deleteUser"],
     mutationFn: (userId: number) => {
       return DeleteUser(userId);
-    }
-  })
-}
+    },
+  });
+};
+
+export const UseGetSubscriptionPlan = (): UseQueryResult<
+  SubscriptionPlan[],
+  Error
+> => {
+  return useQuery({
+    queryKey: ["subscriptionPlans"],
+    queryFn: () => SuscriptionPlan(),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};

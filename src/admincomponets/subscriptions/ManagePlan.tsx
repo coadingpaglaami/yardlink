@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { Subscription } from "./Subscription";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { SubscriptionPlan } from "@/interfaces/subscripion";
 
 type ManagePlanProps = {
-  plans: Subscription[];
-  onRemove: (selected: Subscription[]) => void;
+  plans: SubscriptionPlan[];
+  onRemove: (selected: SubscriptionPlan[]) => void;
   onClose: () => void;
 };
 export const ManagePlan = ({ plans, onRemove, onClose }: ManagePlanProps) => {
   const [selected, setSelected] = useState<Record<number, boolean>>({});
 
+    console.log(plans)
   const toggle = (i: number) => setSelected((s) => ({ ...s, [i]: !s[i] }));
 
   const handleRemove = () => {
@@ -36,10 +37,10 @@ export const ManagePlan = ({ plans, onRemove, onClose }: ManagePlanProps) => {
         
               <div className="font-medium">{p.name}</div>
               <div className="text-sm text-muted-foreground">
-                {p.duration} month(s) 
+                {p.duration} 
               </div>
-              <span>${p.price}</span>
-              {p.discount && (
+              <span>${p.final_price}</span>
+              {Number(p.discount) > 0 && (
                 <div className="text-sm">{p.discount}% off</div>
               )}
 
