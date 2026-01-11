@@ -26,15 +26,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Search,
-  Filter,
-  Plus,
-  Pause,
-  Play,
-  Trash,
-  Clock,
-} from "lucide-react";
+import { Search, Filter, Plus, Pause, Play, Trash, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddPlan } from "./AddPlan";
 import { ManagePlan } from "./ManagePlan";
@@ -44,92 +36,22 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { UseGetSubscriptionPlan } from "@/hooks";
-import { SubscriptionPlan } from "@/interfaces/subscripion";
+import {
+  UseCreateSubscriptionPlan,
+  useDeletePlanMutation,
+  useExtendSubscriptionMutation,
+  UseGetSubscriptionPlan,
+  useListOfSubscriptionsQuery,
+} from "@/hooks";
+import { Subscription, SubscriptionPlan } from "@/interfaces/subscripion";
+import { format } from "date-fns";
+import { da } from "date-fns/locale";
 
 /* --------------------
    Types / Interfaces
    -------------------- */
-
-export interface Subscription {
-  name: string;
-  duration: number; // months
-  price: number;
-  discount?: number;
-  startDate?: string; // mm/dd/yyyy
-  endDate?: string; // mm/dd/yyyy
-  description?: string;
-}
-
-interface SubscriptionItem {
-  id: string; // format #12543
-  name: string;
-  subStatus: "Active" | "Expired";
-  planType: "Pro" | "Basic";
-  duration: number;
-  price: number;
-  subscription: Subscription;
-  startDate: string;
-  endDate: string;
-  isPaused: boolean;
-  email: string;
-  avatarColorIndex?: number;
-}
-
-/* --------------------
-   Demo data generation (85 items)
-   -------------------- */
-const generateSubscriptions = (n = 85): SubscriptionItem[] => {
-  const plans: Subscription[] = [
-    {
-      name: "Pro 6m",
-      duration: 6,
-      price: 60,
-      discount: 5,
-      description: "Pro plan 6 months",
-    },
-    {
-      name: "Pro 12m",
-      duration: 12,
-      price: 100,
-      discount: 10,
-      description: "Pro plan yearly",
-    },
-    { name: "Basic 3m", duration: 3, price: 30, description: "Basic 3 months" },
-    { name: "Basic 1m", duration: 1, price: 12, description: "Monthly Basic" },
-  ];
-
-  return Array.from({ length: n }).map((_, i) => {
-    const plan = plans[i % plans.length];
-    const start = new Date();
-    start.setMonth(start.getMonth() - (i % 6));
-    const end = new Date(start);
-    end.setMonth(end.getMonth() + plan.duration);
-
-    const fmt = (d: Date) =>
-      `${String(d.getMonth() + 1).padStart(2, "0")}/${String(
-        d.getDate()
-      ).padStart(2, "0")}/${d.getFullYear()}`;
-
-    return {
-      id: `#${12543 + i}`,
-      name: `Demo User ${i + 1}`,
-      email: `demo${i + 1}@example.com`,
-      subStatus: i % 10 === 0 ? "Expired" : "Active",
-      planType: i % 2 === 0 ? "Pro" : "Basic",
-      duration: plan.duration,
-      price: plan.price,
-      subscription: plan,
-      startDate: fmt(start),
-      endDate: fmt(end),
-      isPaused: i % 7 === 0,
-      avatarColorIndex: i % 6,
-    };
-  });
-};
-
-const demoSubscriptions = generateSubscriptions(85);
 
 /* --------------------
    UI helpers
@@ -144,89 +66,101 @@ const avatarBg = [
 ];
 export const Subscriptions = () => {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"Pro" | "Basic" | "All">("All");
+  const [filter, setFilter] = useState<string>("All");
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
 
-const subscriptionPlan = UseGetSubscriptionPlan();
-  const [data, setData] = useState<SubscriptionItem[]>(demoSubscriptions);
-
-  // dialogs state
-  const [addPlanOpen, setAddPlanOpen] = useState(false);
-  const [managePlanOpen, setManagePlanOpen] = useState(false);
-
-  const [extendDialog, setExtendDialog] = useState<{ index: number } | null>(
-    null
+  const subscriptionPlan = UseGetSubscriptionPlan();
+  const { data: userSubscripion, refetch } = useListOfSubscriptionsQuery({
+    page: page,
+    search: search,
+    limit: itemsPerPage,
+  });
+  const extendSubscriptionMutation = useExtendSubscriptionMutation();
+  const [data, setData] = useState<Subscription[]>(
+    userSubscripion?.subscriptions || []
   );
+  console.log(data);
+
+  const createSubscriptionPlan = UseCreateSubscriptionPlan();
+  const { mutate: deleteMutate } = useDeletePlanMutation();
+
+  // Extend dialog state with selected subscription data
+  const [extendDialog, setExtendDialog] = useState<{
+    open: boolean;
+    subscription: Subscription | null;
+    extendDays: string;
+  }>({
+    open: false,
+    subscription: null,
+    extendDays: "30",
+  });
+
   const [confirmDialog, setConfirmDialog] = useState<{
     type: "pause" | "delete";
     index: number;
   } | null>(null);
 
-  // plans state (for Manage/Add)
-  const [plans, setPlans] = useState<Subscription[] >(
-    Array.from(new Set(data.map((d) => d.subscription.name))).map((name) => {
-      const d = data.find((x) => x.subscription.name === name)!;
-      return { ...d.subscription };
-    })
+  // dialogs state
+  const [addPlanOpen, setAddPlanOpen] = useState(false);
+  const [managePlanOpen, setManagePlanOpen] = useState(false);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(userSubscripion?.count || 1 / itemsPerPage)
   );
-
-  // memo filtered
-  const filtered = useMemo(() => {
-    return data.filter(
-      (d) =>
-        (filter === "All" || d.planType === filter) &&
-        (d.name.toLowerCase().includes(search.toLowerCase()) ||
-          d.email.toLowerCase().includes(search.toLowerCase()))
-    );
-  }, [data, filter, search]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
-  const pageData = filtered.slice(
+  const pageData = userSubscripion?.subscriptions.slice(
     (page - 1) * itemsPerPage,
     page * itemsPerPage
   );
 
   /* ---- Add plan handler ---- */
-  const handleAddPlan = (plan: Subscription) => {
-    setPlans((p) => [plan, ...p]);
-  };
-
-  const handleRemovePlans = (selected: Subscription[] | SubscriptionPlan[]) => {
-    setPlans((p) => p.filter((pl) => !selected.includes(pl)));
-  };
-
-  /* ---- Extend / Pause / Delete handlers ---- */
-  const handleExtend = (
-    indexOnPage: number,
-    payload: { start?: string; end?: string; duration?: number; price?: number }
+  const handleAddPlan = (
+    plan: Pick<
+      SubscriptionPlan,
+      "name" | "description" | "price" | "discount" | "duration"
+    >
   ) => {
-    const globalIndex = (page - 1) * itemsPerPage + indexOnPage;
-    setData((prev) => {
-      const copy = [...prev];
-      const item = copy[globalIndex];
-      if (!item) return prev;
-      item.startDate = payload.start ?? item.startDate;
-      item.endDate = payload.end ?? item.endDate;
-      item.duration = payload.duration ?? item.duration;
-      item.price = payload.price ?? item.price;
-      copy[globalIndex] = { ...item };
-      return copy;
+    createSubscriptionPlan.mutate({
+      description: plan.description,
+      duration: plan.duration,
+      discount: plan.discount,
+      name: plan.name,
+      price: plan.price,
     });
-    setExtendDialog(null);
+    subscriptionPlan.refetch();
   };
 
-  const handlePauseToggle = (indexOnPage: number) => {
-    const globalIndex = (page - 1) * itemsPerPage + indexOnPage;
-    setData((prev) => {
-      const copy = [...prev];
-      copy[globalIndex] = {
-        ...copy[globalIndex],
-        isPaused: !copy[globalIndex].isPaused,
-      };
-      return copy;
+  const handleRemovePlans = (selected: SubscriptionPlan[]) => {
+    console.log("Remove plans:", selected);
+    selected.map((s) => {
+      deleteMutate(s.id);
     });
-    setConfirmDialog(null);
+  };
+
+  /* ---- Extend handler ---- */
+  const handleExtend = async () => {
+    if (!extendDialog.subscription) return;
+
+    try {
+      await extendSubscriptionMutation.mutateAsync({
+        userId: extendDialog.subscription.plan,
+        days: parseInt(extendDialog.extendDays),
+      });
+
+      // Refresh the data
+      refetch();
+
+      // Close dialog
+      setExtendDialog({
+        open: false,
+        subscription: null,
+        extendDays: "30",
+      });
+    } catch (error) {
+      console.error("Failed to extend subscription:", error);
+      // Handle error (show toast, etc.)
+    }
   };
 
   const handleDelete = (indexOnPage: number) => {
@@ -262,16 +196,16 @@ const subscriptionPlan = UseGetSubscriptionPlan();
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-36">
-              {(["Pro", "Basic", "All"] as const).map((s, i, arr) => (
+              {subscriptionPlan?.data?.map((s, i, arr) => (
                 <DropdownMenuItem
-                  key={s}
+                  key={s.id}
                   onClick={() => {
-                    setFilter(s);
+                    setFilter(s.name);
                     setPage(1);
                   }}
                   className={i === arr.length - 1 ? "border-b" : ""}
                 >
-                  {s}
+                  {s.name}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -314,40 +248,11 @@ const subscriptionPlan = UseGetSubscriptionPlan();
               <AddPlan
                 onAdd={handleAddPlan}
                 onClose={() => setAddPlanOpen(false)}
+                loading={createSubscriptionPlan.isPending}
               />
             </DialogContent>
           </Dialog>
         </div>
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-        {[
-          { title: "Total Subscriptions", total: data.length },
-          {
-            title: "Pro Plans",
-            total: data.filter((d) => d.planType === "Pro").length,
-          },
-          {
-            title: "Basic Plans",
-            total: data.filter((d) => d.planType === "Basic").length,
-          },
-          {
-            title: "Expired",
-            total: data.filter((d) => d.subStatus === "Expired").length,
-          },
-          {
-            title: "Monthly Revenue",
-            total: data.reduce((s, d) => s + d.price, 0),
-          },
-        ].map((c, i) => (
-          <Card key={i} className="border">
-            <CardContent className="flex flex-col items-center gap-2 py-6">
-              <div className="text-sm font-medium">{c.title}</div>
-              <div className="text-2xl font-bold">{c.total}</div>
-            </CardContent>
-          </Card>
-        ))}
       </div>
 
       {/* Table */}
@@ -359,6 +264,7 @@ const subscriptionPlan = UseGetSubscriptionPlan();
                 <TableHead>Serial</TableHead>
                 <TableHead>ID</TableHead>
                 <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead className="text-center">
                   Subscription Status
                 </TableHead>
@@ -372,51 +278,62 @@ const subscriptionPlan = UseGetSubscriptionPlan();
             </TableHeader>
 
             <TableBody>
-              {pageData.map((row, idx) => {
-                const serial = (page - 1) * itemsPerPage + idx + 1;
+              {pageData?.map((row, idx) => {
                 return (
                   <TableRow key={row.id}>
-                    <TableCell>{serial}</TableCell>
-                    <TableCell>{row.id}</TableCell>
+                    <TableCell>{idx + 1}</TableCell>
+                    <TableCell>{row.user}</TableCell>
+                    <TableCell>{row.user_email}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div
                           className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                            avatarBg[row.avatarColorIndex ?? 0]
+                            avatarBg[row.id ?? 0 % avatarBg.length]
                           }`}
                         >
-                          {row.name.charAt(0)}
+                          {row.user_name.charAt(0).toUpperCase()}
                         </div>
-                        {row.name}
+                        {row.user_name.slice(0, 1).toUpperCase() +
+                          row.user_name.slice(1)}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-2">
                         <Badge
                           variant={
-                            row.subStatus === "Active"
+                            row.status === "active"
                               ? "secondary"
                               : "destructive"
                           }
                           className={
-                            row.subStatus === "Active"
+                            row.status === "active"
                               ? "bg-green-500 text-white"
                               : ""
                           }
                         >
-                          {row.subStatus}
+                          {row.status}
                         </Badge>
                       </div>
                     </TableCell>
-                    <TableCell>{row.startDate}</TableCell>
-                    <TableCell>{row.endDate}</TableCell>
-                    <TableCell>{row.subscription.name}</TableCell>
+                    <TableCell>
+                      {format(new Date(row.start_date), "yyyy-MM-dd")}
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(row.end_date), "yyyy-MM-dd")}
+                    </TableCell>
+                    <TableCell>{row.plan_name}</TableCell>
                     <TableCell className="flex gap-2">
                       {/* Extend */}
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setExtendDialog({ index: idx })}
+                        onClick={() =>
+                          setExtendDialog({
+                            open: true,
+                            subscription: row,
+                            extendDays: "30",
+                          })
+                        }
                       >
                         <svg
                           width="27"
@@ -430,21 +347,6 @@ const subscriptionPlan = UseGetSubscriptionPlan();
                             fill="#0067D8"
                           />
                         </svg>
-                      </Button>
-
-                      {/* Pause/Play */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          setConfirmDialog({ type: "pause", index: idx })
-                        }
-                      >
-                        {row.isPaused ? (
-                          <Play className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <Pause className="w-4 h-4 text-yellow-500" />
-                        )}
                       </Button>
 
                       {/* Delete */}
@@ -474,8 +376,19 @@ const subscriptionPlan = UseGetSubscriptionPlan();
       />
 
       {/* Extend Dialog */}
-      {extendDialog && (
-        <Dialog open onOpenChange={() => setExtendDialog(null)}>
+      {extendDialog.open && extendDialog.subscription && (
+        <Dialog
+          open={extendDialog.open}
+          onOpenChange={(open) => {
+            if (!open) {
+              setExtendDialog({
+                open: false,
+                subscription: null,
+                extendDays: "30",
+              });
+            }
+          }}
+        >
           <DialogContent className="max-w-lg w-full">
             <DialogHeader>
               <DialogTitle>Extend Subscription</DialogTitle>
@@ -485,46 +398,41 @@ const subscriptionPlan = UseGetSubscriptionPlan();
             <div className="flex flex-col items-center gap-3 py-4">
               <div
                 className={`w-16 h-16 rounded-full flex items-center justify-center text-white ${
-                  avatarBg[
-                    (page - 1) * itemsPerPage +
-                      (extendDialog.index % avatarBg.length)
-                  ]
+                  avatarBg[extendDialog.subscription.id % avatarBg.length]
                 }`}
               >
-                {data[
-                  (page - 1) * itemsPerPage + extendDialog.index
-                ].name.charAt(0)}
+                {extendDialog.subscription.user_email.charAt(0)}
               </div>
               <div className="text-lg font-medium">
-                {data[(page - 1) * itemsPerPage + extendDialog.index].name}
+                {extendDialog.subscription.user_email}
               </div>
               <div className="text-sm text-muted-foreground">
-                {data[(page - 1) * itemsPerPage + extendDialog.index].email} •{" "}
-                {data[(page - 1) * itemsPerPage + extendDialog.index].planType}
+                {extendDialog.subscription.user_email} •{" "}
+                {extendDialog.subscription.plan_name}
               </div>
             </div>
 
             {/* disabled inputs with labels */}
             <div className="space-y-4">
               <div className="flex gap-2">
-                <div className=" flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <Label className="whitespace-nowrap">Start Date</Label>
                   <Input
-                    value={
-                      data[(page - 1) * itemsPerPage + extendDialog.index]
-                        .startDate
-                    }
+                    value={format(
+                      new Date(extendDialog.subscription.start_date),
+                      "yyyy-MM-dd"
+                    )}
                     className="bg-primary/20"
                     disabled
                   />
                 </div>
-                <div className=" flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <Label className="whitespace-nowrap">End Date</Label>
                   <Input
-                    value={
-                      data[(page - 1) * itemsPerPage + extendDialog.index]
-                        .endDate
-                    }
+                    value={format(
+                      new Date(extendDialog.subscription.end_date),
+                      "yyyy-MM-dd"
+                    )}
                     className="bg-primary/20"
                     disabled
                   />
@@ -533,82 +441,67 @@ const subscriptionPlan = UseGetSubscriptionPlan();
 
               <div className="flex gap-4">
                 <div className="flex-1 flex items-center gap-2">
-                  <Label className="whitespace-nowrap">Duration (months)</Label>
+                  <Label className="whitespace-nowrap">Remaining Days</Label>
                   <Input
-                    value={String(
-                      data[(page - 1) * itemsPerPage + extendDialog.index]
-                        .duration
-                    )}
+                    value={String(extendDialog.subscription.remaining_days)}
                     className="bg-primary/20"
                     disabled
                   />
                 </div>
                 <div className="flex-1 flex items-center gap-2">
-                  <Label className="whitespace-nowrap">Price (USD)</Label>
+                  <Label className="whitespace-nowrap">Plan</Label>
                   <Input
-                    value={String(
-                      data[(page - 1) * itemsPerPage + extendDialog.index].price
-                    )}
+                    value={extendDialog.subscription.plan_name}
                     className="bg-primary/20"
                     disabled
                   />
                 </div>
               </div>
+
               <div className="flex-1 flex items-center gap-2">
-                <Label className="whitespace-nowrap">Extend</Label>
-
+                <Label className="whitespace-nowrap">Extend By</Label>
                 <Select
-                  onValueChange={
-                    (v) => console.log("selected extend:", v) // or setState(v)
-                  }
-                  defaultValue={String(
-                    data[(page - 1) * itemsPerPage + extendDialog.index]
-                      .duration
-                  )}
+                  value={extendDialog.extendDays}
+                  onValueChange={(value) => {
+                    setExtendDialog((prev) => ({
+                      ...prev,
+                      extendDays: value,
+                    }));
+                  }}
                 >
-                  <SelectTrigger className="w-full bg-primary/20">
-                    <span>
-                      {
-                        data[(page - 1) * itemsPerPage + extendDialog.index]
-                          .duration
-                      }
-                    </span>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select duration" />
                   </SelectTrigger>
-
                   <SelectContent>
-                    <SelectItem value="1">1 Month</SelectItem>
-                    <SelectItem value="3">3 Months</SelectItem>
-                    <SelectItem value="6">6 Months</SelectItem>
-                    <SelectItem value="12">12 Months</SelectItem>
-
-                    {/* you can pass dynamic values too */}
+                    <SelectItem value="30">1 Month (30 days)</SelectItem>
+                    <SelectItem value="90">3 Months (90 days)</SelectItem>
+                    <SelectItem value="180">6 Months (180 days)</SelectItem>
+                    <SelectItem value="360">12 Months (360 days)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="flex justify-center gap-4 mt-4">
-                <Button variant="outline" onClick={() => setExtendDialog(null)}>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setExtendDialog({
+                      open: false,
+                      subscription: null,
+                      extendDays: "30",
+                    })
+                  }
+                  disabled={extendSubscriptionMutation.isPending}
+                >
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => {
-                    // example: extend by one month
-                    const idxGlobal =
-                      (page - 1) * itemsPerPage + extendDialog.index;
-                    const item = data[idxGlobal];
-                    const newEnd = new Date(item.endDate);
-                    newEnd.setMonth(newEnd.getMonth() + 1);
-                    const fmt = (d: Date) =>
-                      `${String(d.getMonth() + 1).padStart(2, "0")}/${String(
-                        d.getDate()
-                      ).padStart(2, "0")}/${d.getFullYear()}`;
-                    handleExtend(extendDialog.index, {
-                      end: fmt(newEnd),
-                      duration: item.duration + 1,
-                    });
-                  }}
+                  onClick={handleExtend}
+                  disabled={extendSubscriptionMutation.isPending}
                 >
-                  Extend
+                  {extendSubscriptionMutation.isPending
+                    ? "Extending..."
+                    : "Extend"}
                 </Button>
               </div>
             </div>
@@ -616,18 +509,13 @@ const subscriptionPlan = UseGetSubscriptionPlan();
         </Dialog>
       )}
 
-      {/* Confirm Dialog (Pause/Delete) */}
+      {/* Confirm Dialog (Delete) */}
       {confirmDialog && (
         <Dialog open onOpenChange={() => setConfirmDialog(null)}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="text-center">
-                {confirmDialog.type === "pause"
-                  ? data[(page - 1) * itemsPerPage + confirmDialog.index]
-                      .isPaused
-                    ? "Play Subscription?"
-                    : "Pause Subscription?"
-                  : "Delete Subscription?"}
+                Delete Subscription?
               </DialogTitle>
             </DialogHeader>
 
@@ -637,18 +525,12 @@ const subscriptionPlan = UseGetSubscriptionPlan();
               </Button>
               <Button
                 onClick={() => {
-                  if (confirmDialog.type === "pause")
-                    handlePauseToggle(confirmDialog.index);
-                  else handleDelete(confirmDialog.index);
+                  if (confirmDialog.type === "delete")
+                    handleDelete(confirmDialog.index);
                 }}
-                variant={'red'}
+                variant={"red"}
               >
-                {confirmDialog.type === "pause"
-                  ? data[(page - 1) * itemsPerPage + confirmDialog.index]
-                      .isPaused
-                    ? "Play"
-                    : "Pause"
-                  : "Delete"}
+                Delete
               </Button>
             </div>
           </DialogContent>

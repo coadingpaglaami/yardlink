@@ -1,11 +1,25 @@
-import { SubscriptionPlan } from "@/interfaces/subscripion";
+import {
+  SubscriptionParams,
+  SubscriptionPlan,
+  SubscriptionResponse,
+} from "@/interfaces/subscripion";
 import {
   AuthResponse,
   GetUsersParams,
   LoginCredentials,
   UserSummaryResponse,
 } from "@/interfaces/user";
-import { DeleteUser, Login, SuscriptionPlan, UserList } from "@/lib/axios";
+import {
+  CreateSubscriptionPlan,
+  DeletePlan,
+  DeleteSubscriptionPlan,
+  DeleteUser,
+  ExetendSubscription,
+  ListOfSubscriptions,
+  Login,
+  SuscriptionPlan,
+  UserList,
+} from "@/lib/axios";
 import { setTokens } from "@/lib/cookies";
 import {
   useMutation,
@@ -57,5 +71,63 @@ export const UseGetSubscriptionPlan = (): UseQueryResult<
     queryKey: ["subscriptionPlans"],
     queryFn: () => SuscriptionPlan(),
     staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+export const UseCreateSubscriptionPlan = (): UseMutationResult<
+  SubscriptionPlan,
+  Error,
+  Pick<
+    SubscriptionPlan,
+    "name" | "description" | "price" | "discount" | "duration"
+  >
+> => {
+  return useMutation({
+    mutationKey: ["createSubscriptionPlan"],
+    mutationFn: (
+      data: Pick<
+        SubscriptionPlan,
+        "name" | "description" | "price" | "discount" | "duration"
+      >
+    ) => {
+      return CreateSubscriptionPlan(data);
+    },
+  });
+};
+
+export const useDeletePlanMutation = () => {
+  return useMutation({
+    mutationKey: ["deletePlan"],
+    mutationFn: (planId: number) => {
+      return DeletePlan(planId);
+    },
+  });
+};
+
+export const useDeleteSubscriptionPlanMutation = () => {
+  return useMutation({
+    mutationKey: ["deleteSubscriptionPlan"],
+    mutationFn: (subscriptionId: number) => {
+      return DeleteSubscriptionPlan(subscriptionId);
+    },
+  });
+};
+
+export const useListOfSubscriptionsQuery = (
+  params: SubscriptionParams
+): UseQueryResult<SubscriptionResponse, Error> => {
+  return useQuery({
+    queryKey: ["subscriptions", { ...params }],
+    queryFn: () => ListOfSubscriptions(params),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+export const useExtendSubscriptionMutation = () => {
+  return useMutation({
+    mutationKey: ["extendSubscription"],
+    mutationFn: ({ userId, days }: { userId: number; days: number }) => {
+      return ExetendSubscription({ userId, days });
+    },
   });
 };
