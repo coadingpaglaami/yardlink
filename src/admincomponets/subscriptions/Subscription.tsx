@@ -232,7 +232,13 @@ export const Subscriptions = () => {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={addPlanOpen} onOpenChange={setAddPlanOpen}>
+          <Dialog
+            open={addPlanOpen}
+            onOpenChange={(open) => {
+              if (createSubscriptionPlan.isPending) return; // ❌ prevent close while loading
+              setAddPlanOpen(open);
+            }}
+          >
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2">
                 <Plus className="w-4 h-4" />
@@ -473,10 +479,10 @@ export const Subscriptions = () => {
                     <SelectValue placeholder="Select duration" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="30">1 Month (30 days)</SelectItem>
-                    <SelectItem value="90">3 Months (90 days)</SelectItem>
-                    <SelectItem value="180">6 Months (180 days)</SelectItem>
-                    <SelectItem value="360">12 Months (360 days)</SelectItem>
+                    <SelectItem value="10">10 Days</SelectItem>
+                    <SelectItem value="90">20 Days</SelectItem>
+                    <SelectItem value="180">40 Days</SelectItem>
+                    <SelectItem value="360">60 Days</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

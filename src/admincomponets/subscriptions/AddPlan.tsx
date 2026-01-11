@@ -22,7 +22,7 @@ type AddPlanProps = {
   loading?: boolean;
 };
 
-export const AddPlan = ({ onAdd, onClose,loading }: AddPlanProps) => {
+export const AddPlan = ({ onAdd, onClose, loading }: AddPlanProps) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -48,7 +48,6 @@ export const AddPlan = ({ onAdd, onClose,loading }: AddPlanProps) => {
     };
 
     onAdd(plan);
-    onClose();
   };
 
   return (
@@ -127,7 +126,7 @@ export const AddPlan = ({ onAdd, onClose,loading }: AddPlanProps) => {
 
       {/* Buttons */}
       <div className="flex justify-center gap-4 mt-4">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} disabled={loading}>
           Cancel
         </Button>
         <Button onClick={handleAdd} disabled={loading}>
