@@ -32,6 +32,7 @@ import {
   useDeleteUserMutation,
   UseGetSubscriptionPlan,
   useGetUsersQuery,
+  usePauseUserMutation,
 } from "@/hooks";
 import type { GetUsersParams, LandscaperPlan } from "@/interfaces/user";
 
@@ -70,6 +71,7 @@ export const Landscaper = () => {
     refetch,
   } = useGetUsersQuery(params);
   const deleteUserMutation = useDeleteUserMutation();
+  const { mutate: pauseUserMutate } = usePauseUserMutation();
 
   const users = apiData?.data || [];
 
@@ -91,6 +93,22 @@ export const Landscaper = () => {
         console.error("Delete failed:", error);
       },
     });
+  };
+
+  const handlePauseUser = (userId: number, is_active: boolean) => {
+    if (!confirmDialog || confirmDialog.type !== "pause") return;
+    pauseUserMutate(
+      { userId, action: is_active ? "pause" : "unpause" },
+      {
+        onSuccess: () => {
+          refetch(); // refresh list
+          setConfirmDialog(null); // close dialog
+        },
+        onError: (error) => {
+          console.error("Pause/Activate failed:", error);
+        },
+      }
+    );
   };
 
   if (isError) {
@@ -148,7 +166,7 @@ export const Landscaper = () => {
                 <div className="flex flex-col gap-0.5">
                   <span>{plan.name}</span>
                   <span className="text-xs text-muted-foreground">
-                    {plan.price}৳ — {plan.duration} 
+                    {plan.price}৳ — {plan.duration}
                   </span>
                 </div>
               </DropdownMenuItem>
@@ -209,58 +227,65 @@ export const Landscaper = () => {
                       </TableCell>
                     </TableRow>
                   ))
-                : currentData.map((item, index) => (
-                    <TableRow key={item.id} className="border-none">
-                      <TableCell>
-                        {(currentPage - 1) * itemsPerPage + index + 1}
-                      </TableCell>
-                      <TableCell>{item.id}</TableCell>
-                      <TableCell>
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                            profileColors[index % profileColors.length]
-                          }`}
-                        >
-                          {item.name[0].toUpperCase()}
-                        </div>
-                      </TableCell>
-                      <TableCell>{item.name.slice(0,1).toUpperCase()+item.name.slice(1)}</TableCell>
-                      <TableCell>{item.email}</TableCell>
-                      <TableCell>{item.landscaper_plan || "None"}</TableCell>
-                      <TableCell>{item.phone || "N/A"}</TableCell>
-                      <TableCell>
-                        {item.address
-                          ? `${item.address.slice(0, 20)}${
-                              item.address.length > 20 ? "..." : ""
-                            }`
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            setConfirmDialog({ type: "pause", index })
-                          }
-                        >
-                          {item.is_active ? (
-                            <Pause className="w-4 h-4 text-yellow-500" />
-                          ) : (
-                            <Play className="w-4 h-4 text-green-500" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setConfirmDialog({ type: "delete", index });
-                          }}
-                        >
-                          <Trash className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                : currentData.map((item, index) => {
+                    const isPaused = !item.is_active;
+
+                    return (
+                      <TableRow key={item.id} className="border-none">
+                        <TableCell>
+                          {(currentPage - 1) * itemsPerPage + index + 1}
+                        </TableCell>
+                        <TableCell>{item.id}</TableCell>
+                        <TableCell>
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
+                              profileColors[index % profileColors.length]
+                            }`}
+                          >
+                            {item.name[0].toUpperCase()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {item.name.slice(0, 1).toUpperCase() +
+                            item.name.slice(1)}
+                        </TableCell>
+                        <TableCell>{item.email}</TableCell>
+                        <TableCell>{item.landscaper_plan || "None"}</TableCell>
+                        <TableCell>{item.phone || "N/A"}</TableCell>
+                        <TableCell>
+                          {item.address
+                            ? `${item.address.slice(0, 20)}${
+                                item.address.length > 20 ? "..." : ""
+                              }`
+                            : "N/A"}
+                        </TableCell>
+                        <TableCell className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              setConfirmDialog({ type: "pause", index })
+                            }
+                          >
+                            {!isPaused ? (
+                              <Pause className="w-4 h-4 text-yellow-500" />
+                            ) : (
+                              <Play className="w-4 h-4 text-green-500" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setConfirmDialog({ type: "delete", index });
+                            }}
+                          >
+                            <Trash className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
             </TableBody>
           </Table>
         </CardContent>
@@ -298,7 +323,12 @@ export const Landscaper = () => {
                   if (confirmDialog.type === "delete") {
                     handleConfirmDelete(currentData[confirmDialog.index].id);
                   }
-                  setConfirmDialog(null);
+                  if (confirmDialog.type === "pause") {
+                    handlePauseUser(
+                      currentData[confirmDialog.index].id,
+                      currentData[confirmDialog.index].is_active
+                    );
+                  }
                 }}
                 variant="red"
               >

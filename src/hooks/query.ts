@@ -74,8 +74,8 @@ export const useDeleteUserMutation = () => {
 export const usePauseUserMutation = () => {
   return useMutation({
     mutationKey: ["pauseUser"],
-    mutationFn: (userId: number) => {
-      return PauseUser(userId);
+    mutationFn: ({ userId, action }: { userId: number; action: string }) => {
+      return PauseUser(userId, action);
     },
   });
 };

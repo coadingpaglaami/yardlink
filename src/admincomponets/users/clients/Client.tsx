@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail as Email, Play, Pause, Trash, Search } from "lucide-react";
+import { Play, Pause, Trash, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -20,11 +20,13 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import Image from "next/image";
-import { Label } from "@/components/ui/label";
 import { Pagination } from "@/admincomponets/reusable/Pagination";
 import { GetUsersParams } from "@/interfaces/user";
-import { useDeleteUserMutation, useGetUsersQuery } from "@/hooks";
+import {
+  useDeleteUserMutation,
+  useGetUsersQuery,
+  usePauseUserMutation,
+} from "@/hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const profileColors = [
@@ -36,7 +38,6 @@ const profileColors = [
 ];
 
 export const Client = () => {
-  const [messageDialog, setMessageDialog] = useState<null | number>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     type: "pause" | "delete";
     index: number;
@@ -74,6 +75,23 @@ export const Client = () => {
     });
   };
 
+  const { mutate: pauseUserMutate } = usePauseUserMutation();
+
+  const handlePauseUser = (userId: number, is_active: boolean) => {
+    if (!confirmDialog || confirmDialog.type !== "pause") return;
+    pauseUserMutate(
+      { userId, action: is_active ? "pause" : "unpause" },
+      {
+        onSuccess: () => {
+          refetch(); // refresh list
+          setConfirmDialog(null); // close dialog
+        },
+        onError: (error) => {
+          console.error("Pause/Activate failed:", error);
+        },
+      }
+    );
+  };
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
@@ -164,58 +182,61 @@ export const Client = () => {
                       </TableCell>
                     </TableRow>
                   ))
-                : pageData.map((item, index) => (
-                    <TableRow key={item.id} className="border-none">
-                      <TableCell>
-                        {(page - 1) * itemsPerPage + index + 1}
-                      </TableCell>
-                      <TableCell>
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                            profileColors[index % profileColors.length]
-                          }`}
-                        >
-                          {item.name[0].toUpperCase()}
-                        </div>
-                      </TableCell>
-                      <TableCell>{item.id}</TableCell>
-                      <TableCell>{item.name}</TableCell>
-                      <TableCell>{item.email}</TableCell>
-                      <TableCell>{item.phone || "N/A"}</TableCell>
-                      <TableCell>
-                        {item.address
-                          ? `${item.address.slice(0, 20)}${
-                              item.address.length > 20 ? "..." : ""
-                            }`
-                          : "N/A"}
-                      </TableCell>
+                : pageData.map((item, index) => {
+                    const isPaused = !item.is_active;
+                    return (
+                      <TableRow key={item.id} className="border-none">
+                        <TableCell>
+                          {(page - 1) * itemsPerPage + index + 1}
+                        </TableCell>
+                        <TableCell>
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
+                              profileColors[index % profileColors.length]
+                            }`}
+                          >
+                            {item.name[0].toUpperCase()}
+                          </div>
+                        </TableCell>
+                        <TableCell>{item.id}</TableCell>
+                        <TableCell>{item.name}</TableCell>
+                        <TableCell>{item.email}</TableCell>
+                        <TableCell>{item.phone || "N/A"}</TableCell>
+                        <TableCell>
+                          {item.address
+                            ? `${item.address.slice(0, 20)}${
+                                item.address.length > 20 ? "..." : ""
+                              }`
+                            : "N/A"}
+                        </TableCell>
 
-                      <TableCell className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            setConfirmDialog({ type: "pause", index })
-                          }
-                        >
-                          {item.is_active ? (
-                            <Play className="w-4 h-4 text-green-500" />
-                          ) : (
-                            <Pause className="w-4 h-4 text-yellow-500" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setConfirmDialog({ type: "delete", index });
-                          }}
-                        >
-                          <Trash className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        <TableCell className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              setConfirmDialog({ type: "pause", index })
+                            }
+                          >
+                            {!isPaused ? (
+                              <Play className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Pause className="w-4 h-4 text-yellow-500" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setConfirmDialog({ type: "delete", index });
+                            }}
+                          >
+                            <Trash className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
             </TableBody>
           </Table>
         </CardContent>
@@ -250,6 +271,12 @@ export const Client = () => {
                   // handle action
                   if (confirmDialog.type === "delete") {
                     handleConfirmDelete(pageData[confirmDialog.index].id);
+                  }
+                  if (confirmDialog.type === "pause") {
+                    handlePauseUser(
+                      pageData[confirmDialog.index].id,
+                      pageData[confirmDialog.index].is_active
+                    );
                   }
                   setConfirmDialog(null);
                 }}

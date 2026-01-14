@@ -39,9 +39,14 @@ export const DeleteUser = async (userId: number): Promise<void> => {
   return await axiosInstance.delete(`${ADMIN}/delete-user/${userId}/`);
 };
 
-export const PauseUser = async (userId: number): Promise<void> => {
-  return await axiosInstance.patch(`${ADMIN}/users/${userId}/pause/`);
-}
+export const PauseUser = async (
+  userId: number,
+  action: string
+): Promise<void> => {
+  return await axiosInstance.patch(`${ADMIN}/users/${userId}/pause/`, {
+    action,
+  });
+};
 
 // Subscriptions //
 
@@ -96,7 +101,9 @@ export const ExetendSubscription = ({
 export const AllMessages = async (
   params: MessageParams
 ): Promise<MessageResponse> => {
-  const { data } = await axiosInstance.get(`${ADMIN}/list/contact/`, { params });
+  const { data } = await axiosInstance.get(`${ADMIN}/list/contact/`, {
+    params,
+  });
   return data;
 };
 
