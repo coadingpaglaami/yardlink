@@ -26,8 +26,6 @@ export const AddPlan = ({ onAdd, onClose, loading }: AddPlanProps) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   const [duration, setDuration] = useState<string>("monthly");
   const [price, setPrice] = useState<number>(0);

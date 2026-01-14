@@ -1,56 +1,109 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
+import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Bell, Filter, Mail, Search, Trash } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Bell, Mail, Search, Trash } from "lucide-react";
 import { Pagination } from "../reusable/Pagination";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
-interface MessageData {
-  name: string;
-  email: string;
-  message: string;
-  category: "All" | "General" | "Report";
-  date: string;
-  status: "New" | "Read" | "Replied";
-}
+import {
+  useAllMessagesQuery,
+  useReplyMutation,
+  useDeleteMessageMutation,
+} from "@/hooks/query"; // ← adjust path to where you put the hooks
 
-const demoMessages: MessageData[] = Array.from({ length: 120 }).map((_, i) => ({
-  name: `User ${i + 1}`,
-  email: `user${i + 1}@example.com`,
-  message: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor.",
-  category: i % 2 === 0 ? "General" : "Report",
-  date: `2025/11/${(i % 30) + 1}`,
-  status: i % 3 === 0 ? "New" : i % 3 === 1 ? "Read" : "Replied",
-}));
+import { Message as MessagePreview } from "@/interfaces/message";
 
 export const Message = () => {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"All" | "General" | "Report">("All");
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
 
-  const [selectedMessage, setSelectedMessage] = useState<MessageData | null>(null);
-  const [deleteDialog, setDeleteDialog] = useState<{ index: number } | null>(null);
-  const [notificationDialog, setNotificationDialog] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<MessagePreview | null>(
+    null
+  );
+  const [replyText, setReplyText] = useState("");
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  const filteredMessages = useMemo(() => {
-    return demoMessages.filter(
-      (m) =>
-        (filter === "All" || m.category === filter) &&
-        (m.name.toLowerCase().includes(search.toLowerCase()) || m.email.toLowerCase().includes(search.toLowerCase()))
+  // ── Fetch messages ────────────────────────────────────────────────
+  const {
+    data: response,
+    isLoading,
+    isError,
+    refetch,
+  } = useAllMessagesQuery({
+    page,
+    limit: itemsPerPage,
+    search: search.trim() || undefined,
+  });
+
+  const messages = response?.results || [];
+  const totalCount = response?.count || 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
+  console.log(response);
+  const newCount = messages.filter((m) => m.status === "New").length;
+
+  // ── Mutations ─────────────────────────────────────────────────────
+  const replyMutation = useReplyMutation();
+  const deleteMutation = useDeleteMessageMutation();
+
+  const handleSendReply = () => {
+    if (!selectedMessage || !replyText.trim()) return;
+
+    replyMutation.mutate(
+      {
+        messageId: selectedMessage.id,
+        admin_reply: replyText.trim(),
+      },
+      {
+        onSuccess: () => {
+          toast.success("Reply sent successfully");
+          setReplyText("");
+          setSelectedMessage(null);
+          refetch();
+        },
+        onError: () => {
+          toast.error("Failed to send reply");
+        },
+      }
     );
-  }, [search, filter]);
+  };
 
-  const totalPages = Math.ceil(filteredMessages.length / itemsPerPage);
-  const pageData = filteredMessages.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+  const handleDelete = () => {
+    if (!deleteId) return;
 
-  const newCount = demoMessages.filter((m) => m.status === "New").length;
+    deleteMutation.mutate(deleteId, {
+      onSuccess: () => {
+        toast.success("Message deleted successfully");
+        setDeleteId(null);
+        refetch();
+      },
+      onError: () => {
+        toast.error("Failed to delete message");
+      },
+    });
+  };
 
   return (
     <div className="flex flex-col gap-6 py-16 md:px-6 px-2">
@@ -58,6 +111,7 @@ export const Message = () => {
       <div className="flex flex-col md:flex-row md:justify-between gap-4 items-start md:items-center">
         <div className="flex items-center gap-3">
           <div className="relative w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
               placeholder="Search by name or email"
               className="pl-10"
@@ -67,174 +121,227 @@ export const Message = () => {
                 setPage(1);
               }}
             />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="flex items-center gap-2 px-3 py-2">
-                <span className="text-sm font-medium">Filter By</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-36">
-              {(["All", "General", "Report"] as const).map((f) => (
-                <DropdownMenuItem
-                  key={f}
-                  onClick={() => {
-                    setFilter(f);
-                    setPage(1);
-                  }}
-                >
-                  {f}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
 
-        <Dialog open={notificationDialog} onOpenChange={setNotificationDialog}>
-          <DialogTrigger>
-            <Button className="flex items-center gap-2 justify-center p-3 rounded-lg text-black/50 hover:bg-[#03771C40] bg-[#03771C40]">
-              <Bell /> Push Notification
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="space-y-4">
-            <DialogHeader>
-              <DialogTitle>Push Notification</DialogTitle>
-            </DialogHeader>
-            <div className="flex gap-4 justify-end">
-              <Select defaultValue="Client">
-                <SelectTrigger className="w-fit">Client</SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Client">Client</SelectItem>
-                  <SelectItem value="Landscaper">Landscaper</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Notification Text</Label>
-              <Input placeholder="Enter message" />
-            </div>
-            <div className="flex justify-center">
-              <Button>Send</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Push Notification Button - placeholder */}
+        <Button className="flex items-center gap-2 justify-center p-3 rounded-lg text-black/50 hover:bg-[#03771C40] bg-[#03771C40]">
+          <Bell />
+          Push Notification
+        </Button>
       </div>
 
-      {/* Summary */}
+      {/* New messages count */}
+      <div className="text-sm font-medium p-2 border border-green-300 rounded-lg">
+        You have {newCount} New Message{newCount !== 1 ? "s" : ""}
+      </div>
 
-        <div className="text-sm font-medium p-2 border border-green-300 rounded-lg">You have {newCount} New Messages</div>
-   
-
-      {/* Shadcn Table */}
+      {/* Messages title + table */}
       <div className="overflow-x-auto">
-          <div className="flex items-center gap-3">
- <Mail /> Message ({demoMessages.length})
-          </div>
-         
-        
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Message</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pageData.map((m, idx) => (
-              <TableRow key={idx}>
-                <TableCell>{m.name}</TableCell>
-                <TableCell>{m.email}</TableCell>
-                <TableCell className="line-clamp-2">{m.message}</TableCell>
-                <TableCell className={m.category === "General" ? "text-green-600 font-medium" : "text-orange-500 font-medium"}>
-                  {m.category}
-                </TableCell>
-                <TableCell>{m.date}</TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-lg font-medium ${
-                      m.status === "New"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : m.status === "Read"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-green-100 text-green-800"
-                    }`}
-                  >
-                    {m.status}
-                  </span>
-                </TableCell>
-                <TableCell className="flex gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => setSelectedMessage(m)}>
-                    <Mail className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ index: idx })}>
-                    <Trash className="w-4 h-4 text-red-500" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <div className="flex items-center gap-3 mb-4">
+          <Mail className="w-5 h-5" />
+          <span className="text-lg font-medium">Messages ({totalCount})</span>
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Message</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {isLoading ? (
+                  Array(itemsPerPage)
+                    .fill(0)
+                    .map((_, i) => (
+                      <TableRow key={i}>
+                        {Array(6)
+                          .fill(0)
+                          .map((__, j) => (
+                            <TableCell key={j}>
+                              <Skeleton className="h-6 w-full" />
+                            </TableCell>
+                          ))}
+                      </TableRow>
+                    ))
+                ) : isError ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="text-center py-10 text-red-600"
+                    >
+                      Failed to load messages
+                    </TableCell>
+                  </TableRow>
+                ) : messages.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="text-center py-10 text-muted-foreground"
+                    >
+                      No messages found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  messages.map((msg) => (
+                    <TableRow key={msg.id}>
+                      <TableCell className="font-medium">{msg.name}</TableCell>
+                      <TableCell>{msg.email}</TableCell>
+                      <TableCell className="max-w-xs truncate">
+                        {msg.message}
+                      </TableCell>
+                      <TableCell>
+                        {format(
+                          new Date(msg.created_at),
+                          "MMM d, yyyy • h:mm a"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            msg.status === "New" ? "default" : "secondary"
+                          }
+                          className={
+                            msg.status === "New"
+                              ? "bg-yellow-500 hover:bg-yellow-500 text-white"
+                              : "bg-green-600 hover:bg-green-600"
+                          }
+                        >
+                          {msg.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedMessage(msg)}
+                          disabled={replyMutation.isPending}
+                        >
+                          <Mail className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteId(msg.id)}
+                          disabled={deleteMutation.isPending}
+                        >
+                          <Trash className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Pagination */}
-      <Pagination totalPages={totalPages} page={page} onChange={(p) => setPage(p)} />
+      {totalPages > 1 && !isLoading && (
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+      )}
 
-      {/* Message Dialog */}
+      {/* View / Reply Dialog */}
       {selectedMessage && (
         <Dialog open onOpenChange={() => setSelectedMessage(null)}>
-          <DialogContent className="space-y-4">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Message from {selectedMessage.name}</DialogTitle>
             </DialogHeader>
-            <div className="flex justify-between">
+
+            <div className="grid grid-cols-2 gap-6 py-4">
               <div>
-                <div className="text-sm font-medium">From</div>
-                <div>{selectedMessage.name}</div>
+                <Label className="text-sm font-medium">From</Label>
+                <p>{selectedMessage.name}</p>
               </div>
               <div>
-                <div className="text-sm font-medium">Date</div>
-                <div>{selectedMessage.date}</div>
+                <Label className="text-sm font-medium">Email</Label>
+                <p>{selectedMessage.email}</p>
               </div>
+              <div>
+                <Label className="text-sm font-medium">Received</Label>
+                <p>{format(new Date(selectedMessage.created_at), "PPPp")}</p>
+              </div>
+              {selectedMessage.replied_at && (
+                <div>
+                  <Label className="text-sm font-medium">Replied</Label>
+                  <p>{format(new Date(selectedMessage.replied_at), "PPPp")}</p>
+                </div>
+              )}
             </div>
-            <div>
-              <div className="text-sm font-medium">Email</div>
-              <div>{selectedMessage.email}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium">Message</div>
-              <div className="border rounded-lg p-2">{selectedMessage.message}</div>
-            </div>
+
             <div className="space-y-2">
+              <Label className="text-sm font-medium">Message</Label>
+              <div className="border rounded-lg p-4 bg-gray-50 whitespace-pre-wrap">
+                {selectedMessage.message}
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-4">
               <Label>Reply</Label>
-              <Input placeholder="Type your reply..." className="border-green-500" />
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Type your reply here..."
+                className="w-full min-h-[120px] border rounded-md p-3 resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
+                disabled={replyMutation.isPending}
+              />
             </div>
-            <div className="flex justify-center">
-              <Button>Send</Button>
-            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setSelectedMessage(null)}
+                disabled={replyMutation.isPending}
+              >
+                Close
+              </Button>
+              <Button
+                onClick={handleSendReply}
+                disabled={replyMutation.isPending || !replyText.trim()}
+              >
+                {replyMutation.isPending ? "Sending..." : "Send Reply"}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
 
-      {/* Delete Dialog */}
-      {deleteDialog && (
-        <Dialog open onOpenChange={() => setDeleteDialog(null)}>
-          <DialogContent className="space-y-4">
+      {/* Delete Confirmation */}
+      {deleteId && (
+        <Dialog open onOpenChange={() => setDeleteId(null)}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Delete Message?</DialogTitle>
             </DialogHeader>
-            <div className="flex justify-center gap-4">
-              <Button variant="outline" onClick={() => setDeleteDialog(null)}>
+            <p className="py-4 text-sm text-muted-foreground">
+              This action cannot be undone.
+            </p>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteId(null)}
+                disabled={deleteMutation.isPending}
+              >
                 Cancel
               </Button>
-              <Button onClick={() => setDeleteDialog(null)}>Delete</Button>
-            </div>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

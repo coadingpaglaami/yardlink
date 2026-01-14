@@ -7,19 +7,23 @@ type ManagePlanProps = {
   plans: SubscriptionPlan[];
   onRemove: (selected: SubscriptionPlan[]) => void;
   onClose: () => void;
+  removing?: boolean;
 };
-export const ManagePlan = ({ plans, onRemove, onClose }: ManagePlanProps) => {
+export const ManagePlan = ({
+  plans,
+  onRemove,
+  onClose,
+  removing,
+}: ManagePlanProps) => {
   const [selected, setSelected] = useState<Record<number, boolean>>({});
 
   console.log(plans);
   const toggle = (i: number) => setSelected((s) => ({ ...s, [i]: !s[i] }));
-
   const handleRemove = () => {
     const sel = Object.entries(selected)
       .filter(([, v]) => v)
       .map(([k]) => plans[Number(k)]);
     onRemove(sel);
-    onClose();
   };
 
   return (
@@ -37,7 +41,7 @@ export const ManagePlan = ({ plans, onRemove, onClose }: ManagePlanProps) => {
               onCheckedChange={() => toggle(i)}
             />
 
-            <div className="font-medium">{p.name}</div>
+            <div className="font-medium line-clamp-1">{p.name}</div>
             <div className="text-sm text-muted-foreground">{p.duration}</div>
             <span>${p.final_price}</span>
             {Number(p.discount) > 0 && (
@@ -51,8 +55,12 @@ export const ManagePlan = ({ plans, onRemove, onClose }: ManagePlanProps) => {
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button variant="destructive" onClick={handleRemove}>
-          Remove
+        <Button
+          variant="destructive"
+          onClick={handleRemove}
+          disabled={removing}
+        >
+          {removing ? "Removing..." : "Remove"}
         </Button>
       </div>
     </div>

@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Plus, Pause, Play, Trash, Clock } from "lucide-react";
+import { Search, Filter, Plus, Trash, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddPlan } from "./AddPlan";
 import { ManagePlan } from "./ManagePlan";
@@ -38,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton"; // ← added
 import {
   UseCreateSubscriptionPlan,
   useDeletePlanMutation,
@@ -47,15 +49,7 @@ import {
 } from "@/hooks";
 import { Subscription, SubscriptionPlan } from "@/interfaces/subscripion";
 import { format } from "date-fns";
-import { da } from "date-fns/locale";
 
-/* --------------------
-   Types / Interfaces
-   -------------------- */
-
-/* --------------------
-   UI helpers
-   -------------------- */
 const avatarBg = [
   "bg-red-500",
   "bg-green-500",
@@ -64,6 +58,7 @@ const avatarBg = [
   "bg-purple-500",
   "bg-indigo-500",
 ];
+
 export const Subscriptions = () => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("All");
@@ -71,21 +66,18 @@ export const Subscriptions = () => {
   const itemsPerPage = 10;
 
   const subscriptionPlan = UseGetSubscriptionPlan();
-  const { data: userSubscripion, refetch } = useListOfSubscriptionsQuery({
-    page: page,
-    search: search,
+  const { data: userSubscripion, refetch, isLoading: subsLoading } = useListOfSubscriptionsQuery({
+    page,
+    search,
     limit: itemsPerPage,
+    plan: filter === "All" ? undefined : filter,
   });
+
   const extendSubscriptionMutation = useExtendSubscriptionMutation();
-  const [data, setData] = useState<Subscription[]>(
-    userSubscripion?.subscriptions || []
-  );
-  console.log(data);
-
   const createSubscriptionPlan = UseCreateSubscriptionPlan();
-  const { mutate: deleteMutate } = useDeletePlanMutation();
+  const { mutate: deleteMutate, isPending: deleting } = useDeletePlanMutation();
 
-  // Extend dialog state with selected subscription data
+  // Extend dialog state
   const [extendDialog, setExtendDialog] = useState<{
     open: boolean;
     subscription: Subscription | null;
@@ -101,7 +93,6 @@ export const Subscriptions = () => {
     index: number;
   } | null>(null);
 
-  // dialogs state
   const [addPlanOpen, setAddPlanOpen] = useState(false);
   const [managePlanOpen, setManagePlanOpen] = useState(false);
 
@@ -109,12 +100,9 @@ export const Subscriptions = () => {
     1,
     Math.ceil(userSubscripion?.count || 1 / itemsPerPage)
   );
-  const pageData = userSubscripion?.subscriptions.slice(
-    (page - 1) * itemsPerPage,
-    page * itemsPerPage
-  );
 
-  /* ---- Add plan handler ---- */
+  const pageData = userSubscripion?.subscriptions || [];
+
   const handleAddPlan = (
     plan: Pick<
       SubscriptionPlan,
@@ -132,26 +120,21 @@ export const Subscriptions = () => {
   };
 
   const handleRemovePlans = (selected: SubscriptionPlan[]) => {
-    console.log("Remove plans:", selected);
-    selected.map((s) => {
+    selected.forEach((s) => {
       deleteMutate(s.id);
     });
   };
 
-  /* ---- Extend handler ---- */
   const handleExtend = async () => {
     if (!extendDialog.subscription) return;
 
     try {
       await extendSubscriptionMutation.mutateAsync({
-        userId: extendDialog.subscription.plan,
+        userId: extendDialog.subscription.user, // assuming user ID is here
         days: parseInt(extendDialog.extendDays),
       });
 
-      // Refresh the data
       refetch();
-
-      // Close dialog
       setExtendDialog({
         open: false,
         subscription: null,
@@ -159,17 +142,19 @@ export const Subscriptions = () => {
       });
     } catch (error) {
       console.error("Failed to extend subscription:", error);
-      // Handle error (show toast, etc.)
     }
   };
 
   const handleDelete = (indexOnPage: number) => {
-    const globalIndex = (page - 1) * itemsPerPage + indexOnPage;
-    setData((prev) => prev.filter((_, i) => i !== globalIndex));
+    const sub = pageData[indexOnPage];
+    if (sub) {
+      // TODO: call real delete subscription API if you have one
+      console.log("Deleting subscription:", sub.id);
+      refetch();
+    }
     setConfirmDialog(null);
   };
 
-  /* ---- Render ---- */
   return (
     <div className="flex flex-col gap-6 py-16 md:px-6 px-2">
       {/* Top controls */}
@@ -195,17 +180,31 @@ export const Subscriptions = () => {
                 <span className="text-sm font-medium">{filter}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-36">
-              {subscriptionPlan?.data?.map((s, i, arr) => (
+            <DropdownMenuContent className="w-64">
+              <DropdownMenuItem
+                onClick={() => {
+                  setFilter("All");
+                  setPage(1);
+                }}
+                className="font-medium"
+              >
+                All Plans
+              </DropdownMenuItem>
+
+              {subscriptionPlan?.data?.results?.map((plan) => (
                 <DropdownMenuItem
-                  key={s.id}
+                  key={plan.id}
                   onClick={() => {
-                    setFilter(s.name);
+                    setFilter(plan.name);
                     setPage(1);
                   }}
-                  className={i === arr.length - 1 ? "border-b" : ""}
                 >
-                  {s.name}
+                  <div className="flex flex-col gap-0.5">
+                    <span>{plan.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {plan.price}৳ — {plan.duration}
+                    </span>
+                  </div>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -225,9 +224,10 @@ export const Subscriptions = () => {
                 <DialogTitle>Manage Plans</DialogTitle>
               </DialogHeader>
               <ManagePlan
-                plans={subscriptionPlan.data || []}
+                plans={subscriptionPlan.data?.results || []}
                 onRemove={handleRemovePlans}
                 onClose={() => setManagePlanOpen(false)}
+                removing={deleting}
               />
             </DialogContent>
           </Dialog>
@@ -235,7 +235,7 @@ export const Subscriptions = () => {
           <Dialog
             open={addPlanOpen}
             onOpenChange={(open) => {
-              if (createSubscriptionPlan.isPending) return; // ❌ prevent close while loading
+              if (createSubscriptionPlan.isPending) return;
               setAddPlanOpen(open);
             }}
           >
@@ -271,9 +271,7 @@ export const Subscriptions = () => {
                 <TableHead>ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead className="text-center">
-                  Subscription Status
-                </TableHead>
+                <TableHead className="text-center">Subscription Status</TableHead>
                 <TableHead>Start Date</TableHead>
                 <TableHead>End Date</TableHead>
                 <TableHead>Plan Name</TableHead>
@@ -284,55 +282,71 @@ export const Subscriptions = () => {
             </TableHeader>
 
             <TableBody>
-              {pageData?.map((row, idx) => {
-                return (
+              {subsLoading ? (
+                // Skeleton rows while loading
+                Array.from({ length: itemsPerPage }).map((_, index) => (
+                  <TableRow key={index} className="border-none">
+                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <Skeleton className="h-5 w-32" />
+                      </div>
+                    </TableCell>
+                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                    <TableCell>
+                      <Skeleton className="h-6 w-24 mx-auto rounded-full" />
+                    </TableCell>
+                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                    <TableCell>
+                      <div className="flex gap-2 justify-center">
+                        <Skeleton className="h-8 w-8 rounded" />
+                        <Skeleton className="h-8 w-8 rounded" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                pageData?.map((row, idx) => (
                   <TableRow key={row.id}>
-                    <TableCell>{idx + 1}</TableCell>
+                    <TableCell>{(page - 1) * itemsPerPage + idx + 1}</TableCell>
                     <TableCell>{row.user}</TableCell>
-                    <TableCell>{row.user_email}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div
                           className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                            avatarBg[row.id ?? 0 % avatarBg.length]
+                            avatarBg[(row.user ?? 0) % avatarBg.length]
                           }`}
                         >
-                          {row.user_name.charAt(0).toUpperCase()}
+                          {row.user_name?.charAt(0)?.toUpperCase() || "?"}
                         </div>
-                        {row.user_name.slice(0, 1).toUpperCase() +
-                          row.user_name.slice(1)}
+                        {row.user_name?.slice(0, 1).toUpperCase() + row.user_name?.slice(1) || "—"}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-center gap-2">
-                        <Badge
-                          variant={
-                            row.status === "active"
-                              ? "secondary"
-                              : "destructive"
-                          }
-                          className={
-                            row.status === "active"
-                              ? "bg-green-500 text-white"
-                              : ""
-                          }
-                        >
-                          {row.status}
-                        </Badge>
-                      </div>
+                    <TableCell>{row.user_email}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge
+                        variant={row.status === "active" ? "secondary" : "destructive"}
+                        className={row.status === "active" ? "bg-green-500 text-white" : ""}
+                      >
+                        {row.status?.toUpperCase() || "UNKNOWN"}
+                      </Badge>
                     </TableCell>
                     <TableCell>
-                      {format(new Date(row.start_date), "yyyy-MM-dd")}
+                      {row.start_date ? format(new Date(row.start_date), "yyyy-MM-dd") : "—"}
                     </TableCell>
                     <TableCell>
-                      {format(new Date(row.end_date), "yyyy-MM-dd")}
+                      {row.end_date ? format(new Date(row.end_date), "yyyy-MM-dd") : "—"}
                     </TableCell>
-                    <TableCell>{row.plan_name}</TableCell>
-                    <TableCell className="flex gap-2">
+                    <TableCell>{row.plan_name || "—"}</TableCell>
+                    <TableCell className="flex gap-2 justify-center">
                       {/* Extend */}
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() =>
                           setExtendDialog({
                             open: true,
@@ -340,6 +354,7 @@ export const Subscriptions = () => {
                             extendDays: "30",
                           })
                         }
+                        disabled={extendSubscriptionMutation.isPending}
                       >
                         <svg
                           width="27"
@@ -367,8 +382,8 @@ export const Subscriptions = () => {
                       </Button>
                     </TableCell>
                   </TableRow>
-                );
-              })}
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -400,7 +415,6 @@ export const Subscriptions = () => {
               <DialogTitle>Extend Subscription</DialogTitle>
             </DialogHeader>
 
-            {/* centered user info */}
             <div className="flex flex-col items-center gap-3 py-4">
               <div
                 className={`w-16 h-16 rounded-full flex items-center justify-center text-white ${
@@ -418,7 +432,6 @@ export const Subscriptions = () => {
               </div>
             </div>
 
-            {/* disabled inputs with labels */}
             <div className="space-y-4">
               <div className="flex gap-2">
                 <div className="flex items-center gap-2">
@@ -468,21 +481,22 @@ export const Subscriptions = () => {
                 <Label className="whitespace-nowrap">Extend By</Label>
                 <Select
                   value={extendDialog.extendDays}
-                  onValueChange={(value) => {
+                  onValueChange={(value) =>
                     setExtendDialog((prev) => ({
                       ...prev,
                       extendDays: value,
-                    }));
-                  }}
+                    }))
+                  }
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select duration" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="10">10 Days</SelectItem>
-                    <SelectItem value="90">20 Days</SelectItem>
-                    <SelectItem value="180">40 Days</SelectItem>
-                    <SelectItem value="360">60 Days</SelectItem>
+                    <SelectItem value="30">30 Days</SelectItem>
+                    <SelectItem value="90">90 Days</SelectItem>
+                    <SelectItem value="180">180 Days</SelectItem>
+                    <SelectItem value="360">360 Days</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -505,9 +519,7 @@ export const Subscriptions = () => {
                   onClick={handleExtend}
                   disabled={extendSubscriptionMutation.isPending}
                 >
-                  {extendSubscriptionMutation.isPending
-                    ? "Extending..."
-                    : "Extend"}
+                  {extendSubscriptionMutation.isPending ? "Extending..." : "Extend"}
                 </Button>
               </div>
             </div>
@@ -534,7 +546,7 @@ export const Subscriptions = () => {
                   if (confirmDialog.type === "delete")
                     handleDelete(confirmDialog.index);
                 }}
-                variant={"red"}
+                variant="red"
               >
                 Delete
               </Button>

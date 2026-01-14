@@ -8,9 +8,10 @@ import { axiosInstance } from "./axios.instance";
 import {
   SubscriptionParams,
   SubscriptionPlan,
+  SubscriptionPlanResponse,
   SubscriptionResponse,
 } from "@/interfaces/subscripion";
-import { number } from "framer-motion";
+import { MessageParams, MessageResponse } from "@/interfaces/message";
 
 const FORM_DATA_HEADERS = {
   "Content-Type": "multipart/form-data",
@@ -38,7 +39,13 @@ export const DeleteUser = async (userId: number): Promise<void> => {
   return await axiosInstance.delete(`${ADMIN}/delete-user/${userId}/`);
 };
 
-export const SuscriptionPlan = async (): Promise<SubscriptionPlan[]> => {
+export const PauseUser = async (userId: number): Promise<void> => {
+  return await axiosInstance.patch(`${ADMIN}/users/${userId}/pause/`);
+}
+
+// Subscriptions //
+
+export const SuscriptionPlan = async (): Promise<SubscriptionPlanResponse> => {
   const { data } = await axiosInstance.get("plans/");
   return data;
 };
@@ -49,24 +56,26 @@ export const CreateSubscriptionPlan = async (
     "name" | "description" | "price" | "discount" | "duration"
   >
 ): Promise<SubscriptionPlan> => {
-  const { data } = await axiosInstance.post("plans", payload);
+  const { data } = await axiosInstance.post("plans/", payload);
   return data;
 };
 
 export const DeletePlan = (planId: number): Promise<void> => {
-  return axiosInstance.delete(`plans/${planId}/delete`);
+  return axiosInstance.delete(`${ADMIN}/plans/${planId}/delete/`);
 };
 
 export const DeleteSubscriptionPlan = (
   subscripitonId: number
 ): Promise<void> => {
-  return axiosInstance.delete(`subscriptions/${subscripitonId}/delete`);
+  return axiosInstance.delete(`subscriptions/${subscripitonId}/delete/`);
 };
 
 export const ListOfSubscriptions = async (
   params: SubscriptionParams
 ): Promise<SubscriptionResponse> => {
-  const { data } = await axiosInstance.get(`${ADMIN}/subscriptions/`, { params });
+  const { data } = await axiosInstance.get(`${ADMIN}/subscriptions/`, {
+    params,
+  });
   return data;
 };
 
@@ -80,4 +89,29 @@ export const ExetendSubscription = ({
   return axiosInstance.post(`${ADMIN}/subscriptions/${userId}/extend/`, {
     days,
   });
+};
+
+// Message //
+
+export const AllMessages = async (
+  params: MessageParams
+): Promise<MessageResponse> => {
+  const { data } = await axiosInstance.get(`${ADMIN}/list/contact/`, { params });
+  return data;
+};
+
+export const Reply = async ({
+  messageId,
+  admin_reply,
+}: {
+  messageId: number;
+  admin_reply: string;
+}): Promise<void> => {
+  return axiosInstance.patch(`${ADMIN}/messages/${messageId}/reply/`, {
+    admin_reply,
+  });
+};
+
+export const DeleteMessage = (messageId: number): Promise<void> => {
+  return axiosInstance.delete(`${ADMIN}/messages/${messageId}/delete/`);
 };

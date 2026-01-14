@@ -1,6 +1,8 @@
+import { MessageParams } from "@/interfaces/message";
 import {
   SubscriptionParams,
   SubscriptionPlan,
+  SubscriptionPlanResponse,
   SubscriptionResponse,
 } from "@/interfaces/subscripion";
 import {
@@ -10,13 +12,17 @@ import {
   UserSummaryResponse,
 } from "@/interfaces/user";
 import {
+  AllMessages,
   CreateSubscriptionPlan,
+  DeleteMessage,
   DeletePlan,
   DeleteSubscriptionPlan,
   DeleteUser,
   ExetendSubscription,
   ListOfSubscriptions,
   Login,
+  PauseUser,
+  Reply,
   SuscriptionPlan,
   UserList,
 } from "@/lib/axios";
@@ -28,6 +34,7 @@ import {
   UseQueryResult,
 } from "@tanstack/react-query";
 
+// Auth //
 export const useLoginMutation = (): UseMutationResult<
   AuthResponse,
   Error,
@@ -44,6 +51,7 @@ export const useLoginMutation = (): UseMutationResult<
   });
 };
 
+// Users //
 export const useGetUsersQuery = (
   params: GetUsersParams
 ): UseQueryResult<UserSummaryResponse, Error> => {
@@ -63,8 +71,17 @@ export const useDeleteUserMutation = () => {
   });
 };
 
+export const usePauseUserMutation = () => {
+  return useMutation({
+    mutationKey: ["pauseUser"],
+    mutationFn: (userId: number) => {
+      return PauseUser(userId);
+    },
+  });
+};
+// Subscriptions //
 export const UseGetSubscriptionPlan = (): UseQueryResult<
-  SubscriptionPlan[],
+  SubscriptionPlanResponse,
   Error
 > => {
   return useQuery({
@@ -128,6 +145,40 @@ export const useExtendSubscriptionMutation = () => {
     mutationKey: ["extendSubscription"],
     mutationFn: ({ userId, days }: { userId: number; days: number }) => {
       return ExetendSubscription({ userId, days });
+    },
+  });
+};
+
+// Messages //
+
+export const useAllMessagesQuery = (params: MessageParams) => {
+  return useQuery({
+    queryKey: ["allMessages", { ...params }],
+    queryFn: () => AllMessages(params),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+export const useReplyMutation = () => {
+  return useMutation({
+    mutationKey: ["replyMessage"],
+    mutationFn: ({
+      messageId,
+      admin_reply,
+    }: {
+      messageId: number;
+      admin_reply: string;
+    }) => {
+      return Reply({ messageId, admin_reply });
+    },
+  });
+};
+
+export const useDeleteMessageMutation = () => {
+  return useMutation({
+    mutationKey: ["deleteMessage"],
+    mutationFn: (messageId: number) => {
+      return DeleteMessage(messageId);
     },
   });
 };

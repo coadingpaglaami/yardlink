@@ -28,7 +28,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Pagination } from "@/admincomponets/reusable/Pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDeleteUserMutation, useGetUsersQuery } from "@/hooks";
+import {
+  useDeleteUserMutation,
+  UseGetSubscriptionPlan,
+  useGetUsersQuery,
+} from "@/hooks";
 import type { GetUsersParams, LandscaperPlan } from "@/interfaces/user";
 
 const profileColors = [
@@ -45,7 +49,8 @@ export const Landscaper = () => {
     index: number;
   } | null>(null);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"BasicPlan" | "ProPlan" | "All">("All");
+  const { data: subscriptionPlan } = UseGetSubscriptionPlan();
+  const [filter, setFilter] = useState<string>("All");
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -122,21 +127,32 @@ export const Landscaper = () => {
               <span className="text-sm font-medium">{filter}</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-32">
-            {(["ProPlan", "BasicPlan", "All"] as const).map(
-              (status, index, arr) => (
-                <DropdownMenuItem
-                  key={status}
-                  onClick={() => {
-                    setFilter(status);
-                    setCurrentPage(1);
-                  }}
-                  className={index === arr.length - 1 ? "border-b" : ""}
-                >
-                  {status}
-                </DropdownMenuItem>
-              )
-            )}
+          <DropdownMenuContent className="w-64">
+            <DropdownMenuItem
+              onClick={() => {
+                setFilter("All");
+                setCurrentPage(1);
+              }}
+              className="font-medium"
+            >
+              All Plans
+            </DropdownMenuItem>
+            {subscriptionPlan?.results.map((plan, i) => (
+              <DropdownMenuItem
+                key={plan.id}
+                onClick={() => {
+                  setFilter(plan.name);
+                  setCurrentPage(1);
+                }}
+              >
+                <div className="flex flex-col gap-0.5">
+                  <span>{plan.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {plan.price}৳ — {plan.duration} 
+                  </span>
+                </div>
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -208,7 +224,7 @@ export const Landscaper = () => {
                           {item.name[0].toUpperCase()}
                         </div>
                       </TableCell>
-                      <TableCell>{item.name}</TableCell>
+                      <TableCell>{item.name.slice(0,1).toUpperCase()+item.name.slice(1)}</TableCell>
                       <TableCell>{item.email}</TableCell>
                       <TableCell>{item.landscaper_plan || "None"}</TableCell>
                       <TableCell>{item.phone || "N/A"}</TableCell>
