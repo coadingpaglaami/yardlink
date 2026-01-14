@@ -137,7 +137,7 @@ export const Landscaper = () => {
             >
               All Plans
             </DropdownMenuItem>
-            {subscriptionPlan?.results.map((plan, i) => (
+            {subscriptionPlan?.results.map((plan) => (
               <DropdownMenuItem
                 key={plan.id}
                 onClick={() => {
