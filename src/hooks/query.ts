@@ -18,7 +18,11 @@ import {
   DeletePlan,
   DeleteSubscriptionPlan,
   DeleteUser,
+  deleteUserFinancial,
   ExetendSubscription,
+  getDailyOverview,
+  getStripePayments,
+  getTransactionSummary,
   ListOfSubscriptions,
   Login,
   PauseUser,
@@ -31,6 +35,7 @@ import {
   useMutation,
   UseMutationResult,
   useQuery,
+  useQueryClient,
   UseQueryResult,
 } from "@tanstack/react-query";
 
@@ -53,7 +58,7 @@ export const useLoginMutation = (): UseMutationResult<
 
 // Users //
 export const useGetUsersQuery = (
-  params: GetUsersParams
+  params: GetUsersParams,
 ): UseQueryResult<UserSummaryResponse, Error> => {
   return useQuery({
     queryKey: ["users", { ...params }],
@@ -105,7 +110,7 @@ export const UseCreateSubscriptionPlan = (): UseMutationResult<
       data: Pick<
         SubscriptionPlan,
         "name" | "description" | "price" | "discount" | "duration"
-      >
+      >,
     ) => {
       return CreateSubscriptionPlan(data);
     },
@@ -131,7 +136,7 @@ export const useDeleteSubscriptionPlanMutation = () => {
 };
 
 export const useListOfSubscriptionsQuery = (
-  params: SubscriptionParams
+  params: SubscriptionParams,
 ): UseQueryResult<SubscriptionResponse, Error> => {
   return useQuery({
     queryKey: ["subscriptions", { ...params }],
@@ -179,6 +184,58 @@ export const useDeleteMessageMutation = () => {
     mutationKey: ["deleteMessage"],
     mutationFn: (messageId: number) => {
       return DeleteMessage(messageId);
+    },
+  });
+};
+
+export const useDailyOverview = () => {
+  return useQuery({
+    queryKey: ["admin", "daily-overview"],
+    queryFn: () => getDailyOverview(),
+  });
+};
+
+/* =========================
+   TRANSACTION SUMMARY
+========================= */
+
+export const useGetTransactionSummary = () => {
+  return useQuery({
+    queryKey: ["admin", "transaction-summary"],
+    queryFn: getTransactionSummary,
+  });
+};
+
+/* =========================
+   STRIPE PAYMENTS
+========================= */
+
+export const useGetStripePayments = ({ page, limit }: { page: number; limit: number }) => {
+  return useQuery({
+    queryKey: ["admin", "stripe-payments", { page, limit }],
+    queryFn: () => getStripePayments({ page, limit }),
+  });
+};
+
+/* =========================
+   DELETE USER FINANCIAL
+========================= */
+
+export const useDeleteUserFinancial = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteUserFinancial,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "stripe-payments"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "daily-overview"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "transaction-summary"],
+      });
     },
   });
 };

@@ -12,6 +12,11 @@ import {
   SubscriptionResponse,
 } from "@/interfaces/subscripion";
 import { MessageParams, MessageResponse } from "@/interfaces/message";
+import {
+  DailyOverviewResponse,
+  PaymentsResponse,
+  TransactionSummaryResponse,
+} from "@/interfaces/payment";
 
 const FORM_DATA_HEADERS = {
   "Content-Type": "multipart/form-data",
@@ -20,7 +25,7 @@ const FORM_DATA_HEADERS = {
 const ADMIN = "admin";
 
 export const Login = async (
-  payload: LoginCredentials
+  payload: LoginCredentials,
 ): Promise<AuthResponse> => {
   const { data } = await axiosInstance.post("login/", payload, {
     headers: FORM_DATA_HEADERS,
@@ -29,7 +34,7 @@ export const Login = async (
 };
 
 export const UserList = async (
-  params: GetUsersParams
+  params: GetUsersParams,
 ): Promise<UserSummaryResponse> => {
   const { data } = await axiosInstance.get("users-list/", { params });
   return data;
@@ -41,7 +46,7 @@ export const DeleteUser = async (userId: number): Promise<void> => {
 
 export const PauseUser = async (
   userId: number,
-  action: string
+  action: string,
 ): Promise<void> => {
   return await axiosInstance.patch(`${ADMIN}/users/${userId}/pause/`, {
     action,
@@ -59,7 +64,7 @@ export const CreateSubscriptionPlan = async (
   payload: Pick<
     SubscriptionPlan,
     "name" | "description" | "price" | "discount" | "duration"
-  >
+  >,
 ): Promise<SubscriptionPlan> => {
   const { data } = await axiosInstance.post("plans/", payload);
   return data;
@@ -70,13 +75,13 @@ export const DeletePlan = (planId: number): Promise<void> => {
 };
 
 export const DeleteSubscriptionPlan = (
-  subscripitonId: number
+  subscripitonId: number,
 ): Promise<void> => {
   return axiosInstance.delete(`subscriptions/${subscripitonId}/delete/`);
 };
 
 export const ListOfSubscriptions = async (
-  params: SubscriptionParams
+  params: SubscriptionParams,
 ): Promise<SubscriptionResponse> => {
   const { data } = await axiosInstance.get(`${ADMIN}/subscriptions/`, {
     params,
@@ -99,7 +104,7 @@ export const ExetendSubscription = ({
 // Message //
 
 export const AllMessages = async (
-  params: MessageParams
+  params: MessageParams,
 ): Promise<MessageResponse> => {
   const { data } = await axiosInstance.get(`${ADMIN}/list/contact/`, {
     params,
@@ -121,4 +126,32 @@ export const Reply = async ({
 
 export const DeleteMessage = (messageId: number): Promise<void> => {
   return axiosInstance.delete(`${ADMIN}/messages/${messageId}/delete/`);
+};
+
+export const getDailyOverview = async (): Promise<DailyOverviewResponse> => {
+  const { data } = await axiosInstance.get("/admin/stripe/daily-overview/");
+  return data;
+};
+
+// 2️⃣ Transaction Summary
+export const getTransactionSummary =
+  async (): Promise<TransactionSummaryResponse> => {
+    const { data } = await axiosInstance.get("/admin/transactions/summary/");
+    return data;
+  };
+
+// 3️⃣ Stripe Payments (Paginated)
+export const getStripePayments = async ({page,limit}: {page: number, limit: number}): Promise<PaymentsResponse> => {
+  const { data } = await axiosInstance.get("/admin/stripe/payments/", {
+    params: { page, limit },
+  });
+  return data;
+};
+
+// 4️⃣ Delete User Financial
+export const deleteUserFinancial = async (userId: number) => {
+  const { data } = await axiosInstance.delete(
+    `/admin/delete-user-financial/${userId}/`,
+  );
+  return data;
 };
