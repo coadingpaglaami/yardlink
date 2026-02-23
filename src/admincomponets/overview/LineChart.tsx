@@ -29,22 +29,31 @@ export interface LineChartData {
   label: string;
   value: number;
 }
+
 export interface LineChartProps {
   data: LineChartData[];
   selectData: { label: string; value: string }[];
+  value?: string;
+  onChange?: (val: "monthly" | "yearly" | "weekly" | "daily") => void;
 }
 
-export const LineChart = ({ data, selectData }: LineChartProps) => {
+export const LineChart = ({
+  data,
+  selectData,
+  value,
+  onChange,
+}: LineChartProps) => {
   return (
     <Card className="w-full h-full p-4">
-      {/* Top: Heading + Select */}
       <CardHeader className="flex flex-row items-center justify-between pb-6">
-        <CardTitle className="text-lg font-semibold">Revenue Overview</CardTitle>
+        <CardTitle className="text-lg font-semibold">
+          Revenue Overview
+        </CardTitle>
 
-        <Select>
+        <Select value={value} onValueChange={onChange}>
           <SelectTrigger
             className="w-32 rounded-lg h-9 text-white"
-            style={{ backgroundColor: "#81BDFFCC" }} // primary bg
+            style={{ backgroundColor: "#81BDFFCC" }}
           >
             <SelectValue placeholder="Select" />
           </SelectTrigger>
@@ -59,26 +68,22 @@ export const LineChart = ({ data, selectData }: LineChartProps) => {
         </Select>
       </CardHeader>
 
-      {/* Middle Chart */}
-      <CardContent className="h-full">
-        <div className="w-full h-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <ReLineChart data={data}>
-                <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
-              <XAxis dataKey="label" />
-              <YAxis />
-              <Tooltip />
-
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="#3B82F6"
-                strokeWidth={3}
-                dot={true}
-              />
-            </ReLineChart>
-          </ResponsiveContainer>
-        </div>
+      <CardContent className="h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ReLineChart data={data}>
+            <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+            <XAxis dataKey="label" />
+            <YAxis />
+            <Tooltip />
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="#3B82F6"
+              strokeWidth={3}
+              dot
+            />
+          </ReLineChart>
+        </ResponsiveContainer>
       </CardContent>
     </Card>
   );

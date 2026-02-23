@@ -17,6 +17,13 @@ import {
   PaymentsResponse,
   TransactionSummaryResponse,
 } from "@/interfaces/payment";
+import {
+  OverviewMap,
+  Period,
+  SubscriptionRatio,
+  UsersListResponse,
+} from "@/interfaces/user.type";
+import { PaymentRatio } from "@/interfaces/payment.ratio";
 
 const FORM_DATA_HEADERS = {
   "Content-Type": "multipart/form-data",
@@ -141,7 +148,13 @@ export const getTransactionSummary =
   };
 
 // 3️⃣ Stripe Payments (Paginated)
-export const getStripePayments = async ({page,limit}: {page: number, limit: number}): Promise<PaymentsResponse> => {
+export const getStripePayments = async ({
+  page,
+  limit,
+}: {
+  page: number;
+  limit: number;
+}): Promise<PaymentsResponse> => {
   const { data } = await axiosInstance.get("/admin/stripe/payments/", {
     params: { page, limit },
   });
@@ -153,5 +166,32 @@ export const deleteUserFinancial = async (userId: number) => {
   const { data } = await axiosInstance.delete(
     `/admin/delete-user-financial/${userId}/`,
   );
+  return data;
+};
+
+export const getUsersList = async (): Promise<UsersListResponse> => {
+  const { data } = await axiosInstance.get("/users-list/");
+  return data;
+};
+
+// SUBSCRIPTION RATIO
+export const getSubscriptionRatio = async (): Promise<SubscriptionRatio> => {
+  const { data } = await axiosInstance.get(`${ADMIN}/subscriptions/ratio/`);
+  return data;
+};
+
+// STRIPE MONTHLY OVERVIEW
+export const getStripeOverview = async <T extends Period>(
+  period: T
+): Promise<OverviewMap[T]> => {
+  const { data } = await axiosInstance.get(
+    `${ADMIN}/stripe/monthly-overview/?period=${period}`
+  );
+
+  return data;
+};
+
+export const getPaymentRatio = async (): Promise<PaymentRatio> => {
+  const { data } = await axiosInstance.get(`${ADMIN}/dashboard/payment-ratio/`);
   return data;
 };

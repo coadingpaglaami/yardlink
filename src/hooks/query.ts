@@ -11,6 +11,7 @@ import {
   LoginCredentials,
   UserSummaryResponse,
 } from "@/interfaces/user";
+import { Period } from "@/interfaces/user.type";
 import {
   AllMessages,
   CreateSubscriptionPlan,
@@ -21,8 +22,12 @@ import {
   deleteUserFinancial,
   ExetendSubscription,
   getDailyOverview,
+  getPaymentRatio,
+  getStripeOverview,
   getStripePayments,
+  getSubscriptionRatio,
   getTransactionSummary,
+  getUsersList,
   ListOfSubscriptions,
   Login,
   PauseUser,
@@ -210,7 +215,13 @@ export const useGetTransactionSummary = () => {
    STRIPE PAYMENTS
 ========================= */
 
-export const useGetStripePayments = ({ page, limit }: { page: number; limit: number }) => {
+export const useGetStripePayments = ({
+  page,
+  limit,
+}: {
+  page: number;
+  limit: number;
+}) => {
   return useQuery({
     queryKey: ["admin", "stripe-payments", { page, limit }],
     queryFn: () => getStripePayments({ page, limit }),
@@ -239,3 +250,33 @@ export const useDeleteUserFinancial = () => {
     },
   });
 };
+
+export const useGetUsersList = () => {
+  return useQuery({
+    queryKey: ["users-list"],
+    queryFn: getUsersList,
+  });
+};
+
+// SUBSCRIPTION RATIO
+export const useGetSubscriptionRatio = () => {
+  return useQuery({
+    queryKey: ["subscription-ratio"],
+    queryFn: getSubscriptionRatio,
+  });
+};
+
+// STRIPE MONTHLY OVERVIEW
+export const useGetStripeOverview = <T extends Period>(period: T) => {
+  return useQuery({
+    queryKey: ["stripe-overview", period],
+    queryFn: () => getStripeOverview(period),
+  });
+};
+
+export const usePaymentRatio = () => {
+  return useQuery({
+    queryKey: ["payment-ratio"],
+    queryFn: getPaymentRatio,
+  })
+}

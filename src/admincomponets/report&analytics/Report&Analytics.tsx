@@ -7,20 +7,28 @@ import {
   CardComponent,
   CardProps,
 } from "../reusable";
-import {
-  LineChart,
-  LineChartProps,
-} from "../overview/LineChart";
+import { LineChart, LineChartProps } from "../overview/LineChart";
 import { BarChart } from "../reusable/BarChart";
 import { Briefcase, CircleDollarSign } from "lucide-react";
+import { useGetStripePayments, useGetUsersList, usePaymentRatio } from "@/hooks";
 
 export const RepordtAndAnalytics = () => {
+  const { data: paymentRatio } = usePaymentRatio();
+  const { data: usersList } = useGetUsersList();
   // -----------------------------
   // Top 2 Cards
   // -----------------------------
   const topCards: CardProps[] = [
-    { title: "Active Jobs Today", total: 240, icon: Briefcase },
-    { title: "Platform Fee Collected", total: 35, icon: CircleDollarSign },
+    {
+      title: "Active Jobs Today",
+      total: usersList?.summary?.active_jobs || 0,
+      icon: Briefcase,
+    },
+    {
+      title: "Platform Fee Collected",
+      total: usersList?.summary?.platform_fee_collected || 0,
+      icon: CircleDollarSign,
+    },
   ];
 
   // -----------------------------
@@ -93,8 +101,8 @@ export const RepordtAndAnalytics = () => {
   const pieChart2: PieChartProps = {
     heading: "Strip Vs Cash",
     data: [
-      { label: "Strip", value: 60 },
-      { label: "Cash", value: 40 },
+      { label: "Strip", value: paymentRatio?.stripe?.amount || 0 },
+      { label: "Cash", value: paymentRatio?.cash?.amount || 0 },
     ],
     color: [
       { label: "Strip", hex: "#F87171" },

@@ -7,18 +7,91 @@ import { LineChartProps } from "./LineChart";
 import { CardComponent } from "../reusable/Card";
 import { PieChart } from "../reusable/PieChart";
 import { LineChart } from "./LineChart";
-import { Briefcase, CircleDollarSign, UserRoundCheck, Users } from "lucide-react";
+import {
+  Briefcase,
+  CircleDollarSign,
+  UserRoundCheck,
+  Users,
+} from "lucide-react";
+import {
+  useGetStripeOverview,
+  useGetSubscriptionRatio,
+  useGetUsersList,
+} from "@/hooks";
+import { useState } from "react";
 
 export const OverView = () => {
+  const { data: usersList, isLoading: usersLoading } = useGetUsersList();
+  const { data: subscriptionRatio, isLoading: subscriptionLoading } =
+    useGetSubscriptionRatio();
+  const [period, setPeriod] = useState<
+    "monthly" | "yearly" | "weekly" | "daily"
+  >("monthly");
+  const {
+    data: stripeMonthlyOverview,
+    isLoading: stripeMonthlyOverviewLoading,
+  } = useGetStripeOverview(period);
   // -----------------------------
   //  CARD DATA (Top - 4 Cards)
   // -----------------------------
   const cardData: CardProps[] = [
-    { title: "Total Users", total: 1540, icon: Users },
-    { title: "Total Landscaper", total: 320, icon: Users },
-    { title: "Total Client", total: 45000, icon: Users },
-    { title: "Active subscription", total: 78, icon: Users},
+    {
+      title: "Total Users",
+      total: usersList?.summary?.total_users || 0,
+      icon: Users,
+    },
+    {
+      title: "Total Landscaper",
+      total: usersList?.summary?.total_landscapers || 0,
+      icon: Users,
+    },
+    {
+      title: "Total Client",
+      total: usersList?.summary?.total_clients || 0,
+      icon: Users,
+    },
+    {
+      title: "Active subscription",
+      total: usersList?.summary?.active_subscriptions || 0,
+      icon: Users,
+    },
   ];
+
+  const transformOverviewData = () => {
+    if (!stripeMonthlyOverview?.overview) return [];
+
+    return stripeMonthlyOverview.overview.map((item) => {
+      if (period === "weekly" && "week_start" in item) {
+        return {
+          label: String(item.week_start),
+          value: item.income,
+        };
+      }
+
+      if (period === "monthly" && "month" in item) {
+        return {
+          label: String(item.month),
+          value: item.income,
+        };
+      }
+
+      if (period === "daily" && "date" in item) {
+        return {
+          label: String(item.date),
+          value: item.income,
+        };
+      }
+
+      if (period === "yearly" && "year" in item) {
+        return {
+          label: String(item.year),
+          value: item.income,
+        };
+      }
+
+      return { label: "", value: 0 };
+    });
+  };
 
   // -----------------------------
   //  PIE CHART DATA
@@ -26,8 +99,8 @@ export const OverView = () => {
   const pieChartData: PieChartProps = {
     heading: "Category Distribution",
     data: [
-      { label: "Pro", value: 65 },
-      { label: "Basic", value: 35 },
+      { label: "Pro", value: subscriptionRatio?.pro?.percentage || 0 },
+      { label: "Basic", value: subscriptionRatio?.basic?.percentage || 0 },
     ],
     color: [
       { label: "Pro", hex: "#3B82F6" },
@@ -39,17 +112,12 @@ export const OverView = () => {
   //  LINE CHART DATA (Monthly)
   // -----------------------------
   const lineChartData: LineChartProps = {
-    data: [
-      { label: "Jan", value: 40 },
-      { label: "Feb", value: 60 },
-      { label: "Mar", value: 30 },
-      { label: "Apr", value: 80 },
-      { label: "May", value: 55 },
-      { label: "Jun", value: 70 },
-    ],
+    data: transformOverviewData(),
     selectData: [
-      { label: "2024", value: "2024" },
-      { label: "2025", value: "2025" },
+      { label: "Monthly", value: "monthly" },
+      { label: "Yearly", value: "yearly" },
+      { label: "Weekly", value: "weekly" },
+      { label: "Daily", value: "daily" },
     ],
   };
 
@@ -57,8 +125,16 @@ export const OverView = () => {
   //  Extra 2 Cards beside Pie Chart
   // -----------------------------
   const sideCardData: CardProps[] = [
-    { title: <span className="text-2xl">Active Jobs Today</span>, total: 240, icon: Briefcase },
-    { title: <span className="text-2xl">Platform Fee collected</span>, total: 35, icon: CircleDollarSign },
+    {
+      title: <span className="text-2xl">Active Jobs Today</span>,
+      total: usersList?.summary?.active_jobs || 0,
+      icon: Briefcase,
+    },
+    {
+      title: <span className="text-2xl">Platform Fee collected</span>,
+      total: usersList?.summary?.platform_fee_collected || 0,
+      icon: CircleDollarSign,
+    },
   ];
 
   // -----------------------------
@@ -66,7 +142,7 @@ export const OverView = () => {
   // -----------------------------
   const bottomCard: CardProps = {
     title: "Daily Average Active User",
-    total: 92,
+    total: usersList?.summary?.daily_average_users || 0,
     icon: UserRoundCheck,
   };
 
@@ -82,7 +158,12 @@ export const OverView = () => {
       <div className="flex flex-col lg:flex-row lg:items-stretch lg:justify-between gap-2">
         {/* LineChart */}
         <div className="w-full lg:w-1/2">
-          <LineChart data={lineChartData.data} selectData={lineChartData.selectData} />
+          <LineChart
+            data={lineChartData.data}
+            selectData={lineChartData.selectData}
+            value={period}
+            onChange={(val) => setPeriod(val)}
+          />
         </div>
 
         <div className="w-full flex flex-col gap-2 lg:w-1/2">
@@ -111,7 +192,6 @@ export const OverView = () => {
     </div>
   );
 };
-
 
 // "use client";
 
