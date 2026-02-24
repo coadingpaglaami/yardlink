@@ -1,6 +1,7 @@
 import {
   AlignVerticalJustifyStartIcon,
   LayoutDashboard,
+  LeafIcon,
   Mail,
   NotepadText,
   NotepadTextIcon,
@@ -15,11 +16,11 @@ export const sidbaarLinks = [
     href: "/admin",
     icon: LayoutDashboard, // ✈️ airplane icon
   },
-  {
-    label: "Reports & analytics",
-    href: "/admin/report&analytics",
-    icon: AlignVerticalJustifyStartIcon, // 💬 circular message icon
-  },
+  // {
+  //   label: "Reports & analytics",
+  //   href: "/admin/report&analytics",
+  //   icon: AlignVerticalJustifyStartIcon, // 💬 circular message icon
+  // },
   {
     label: "Users",
     href: "/admin/users",
@@ -42,6 +43,11 @@ export const sidbaarLinks = [
     href: "/admin/subscriptions",
     icon: NotepadText, // 💰 earnings
   },
+  // {
+  //     label: "Standard Service",
+  //     href: "/admin/standard_service",
+  //     icon: LeafIcon, // 💰 earnings
+  // },
   {
     label: "Message",
     href: "/admin/message",

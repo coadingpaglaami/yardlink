@@ -89,7 +89,7 @@ export const Client = () => {
         onError: (error) => {
           console.error("Pause/Activate failed:", error);
         },
-      }
+      },
     );
   };
   if (isError) {
@@ -110,7 +110,7 @@ export const Client = () => {
   const totalPages = Math.max(1, Math.ceil(clients.length / itemsPerPage));
   const pageData = clients.slice(
     (page - 1) * itemsPerPage,
-    page * itemsPerPage
+    page * itemsPerPage,
   );
 
   return (
@@ -218,7 +218,7 @@ export const Client = () => {
                               setConfirmDialog({ type: "pause", index })
                             }
                           >
-                            {!isPaused ? (
+                            {isPaused ? (
                               <Play className="w-4 h-4 text-green-500" />
                             ) : (
                               <Pause className="w-4 h-4 text-yellow-500" />
@@ -256,7 +256,7 @@ export const Client = () => {
             <DialogHeader>
               <DialogTitle className="text-center">
                 {confirmDialog.type === "pause"
-                  ? pageData[confirmDialog.index].is_active
+                  ? !pageData[confirmDialog.index].is_active
                     ? "Play this Client?"
                     : "Pause this Client?"
                   : "Delete this Client?"}
@@ -275,7 +275,7 @@ export const Client = () => {
                   if (confirmDialog.type === "pause") {
                     handlePauseUser(
                       pageData[confirmDialog.index].id,
-                      pageData[confirmDialog.index].is_active
+                      pageData[confirmDialog.index].is_active,
                     );
                   }
                   setConfirmDialog(null);
@@ -283,7 +283,7 @@ export const Client = () => {
                 variant="red"
               >
                 {confirmDialog.type === "pause"
-                  ? pageData[confirmDialog.index].is_active
+                  ? !pageData[confirmDialog.index].is_active
                     ? "Play"
                     : "Pause"
                   : "Delete"}

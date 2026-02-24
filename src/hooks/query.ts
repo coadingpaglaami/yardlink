@@ -17,9 +17,9 @@ import {
   CreateSubscriptionPlan,
   DeleteMessage,
   DeletePlan,
-  DeleteSubscriptionPlan,
   DeleteUser,
   deleteUserFinancial,
+  DeleteUserSubscriptionPlan,
   ExetendSubscription,
   getDailyOverview,
   getPaymentRatio,
@@ -31,6 +31,7 @@ import {
   ListOfSubscriptions,
   Login,
   PauseUser,
+  PauseUserSubscription,
   Reply,
   SuscriptionPlan,
   UserList,
@@ -135,7 +136,22 @@ export const useDeleteSubscriptionPlanMutation = () => {
   return useMutation({
     mutationKey: ["deleteSubscriptionPlan"],
     mutationFn: (subscriptionId: number) => {
-      return DeleteSubscriptionPlan(subscriptionId);
+      return DeleteUserSubscriptionPlan(subscriptionId);
+    },
+  });
+};
+
+export const usePauseSubscriptionMutation = () => {
+  return useMutation({
+    mutationKey: ["pauseSubscription"],
+    mutationFn: ({
+      subscriptionId,
+      is_active,
+    }: {
+      subscriptionId: number;
+      is_active: boolean;
+    }) => {
+      return PauseUserSubscription({ subscriptionId, is_active });
     },
   });
 };
@@ -278,5 +294,5 @@ export const usePaymentRatio = () => {
   return useQuery({
     queryKey: ["payment-ratio"],
     queryFn: getPaymentRatio,
-  })
-}
+  });
+};

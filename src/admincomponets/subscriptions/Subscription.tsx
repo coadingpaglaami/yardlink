@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Plus, Trash, Clock } from "lucide-react";
+import { Search, Filter, Plus, Trash, Clock, Play, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddPlan } from "./AddPlan";
 import { ManagePlan } from "./ManagePlan";
@@ -38,16 +38,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton"; // ← added
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   UseCreateSubscriptionPlan,
   useDeletePlanMutation,
+  useDeleteSubscriptionPlanMutation,
   useExtendSubscriptionMutation,
   UseGetSubscriptionPlan,
   useListOfSubscriptionsQuery,
+  usePauseSubscriptionMutation,
 } from "@/hooks";
 import { Subscription, SubscriptionPlan } from "@/interfaces/subscripion";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const avatarBg = [
   "bg-red-500",
@@ -63,9 +66,19 @@ export const Subscriptions = () => {
   const [filter, setFilter] = useState<string>("All");
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
+  
+  const { mutate: deleteSubscription, isPending: isSubscriptionDeleting } =
+    useDeleteSubscriptionPlanMutation();
+  const { mutate: pauseSubscription, isPending: isPausing } =
+    usePauseSubscriptionMutation();
 
-  const subscriptionPlan = UseGetSubscriptionPlan();
-  const { data: userSubscripion, refetch, isLoading: subsLoading } = useListOfSubscriptionsQuery({
+  const { data: subscriptionPlan, refetch: subscriptionPlanRefetch } =
+    UseGetSubscriptionPlan();
+  const {
+    data: userSubscripion,
+    refetch,
+    isLoading: subsLoading,
+  } = useListOfSubscriptionsQuery({
     page,
     search,
     limit: itemsPerPage,
@@ -74,7 +87,8 @@ export const Subscriptions = () => {
 
   const extendSubscriptionMutation = useExtendSubscriptionMutation();
   const createSubscriptionPlan = UseCreateSubscriptionPlan();
-  const { mutate: deleteMutate, isPending: deleting } = useDeletePlanMutation();
+  const { mutateAsync: deleteMutate, isPending: isDeleting } =
+    useDeletePlanMutation();
 
   // Extend dialog state
   const [extendDialog, setExtendDialog] = useState<{
@@ -90,6 +104,7 @@ export const Subscriptions = () => {
   const [confirmDialog, setConfirmDialog] = useState<{
     type: "pause" | "delete";
     index: number;
+    action?: "pause" | "play";
   } | null>(null);
 
   const [addPlanOpen, setAddPlanOpen] = useState(false);
@@ -97,31 +112,36 @@ export const Subscriptions = () => {
 
   const totalPages = Math.max(
     1,
-    Math.ceil(userSubscripion?.count || 1 / itemsPerPage)
+    Math.ceil((userSubscripion?.count || 1) / itemsPerPage),
   );
 
   const pageData = userSubscripion?.subscriptions || [];
 
-  const handleAddPlan = (
+  const handleAddPlan = async (
     plan: Pick<
       SubscriptionPlan,
       "name" | "description" | "price" | "discount" | "duration"
-    >
+    >,
   ) => {
-    createSubscriptionPlan.mutate({
+    await createSubscriptionPlan.mutateAsync({
       description: plan.description,
       duration: plan.duration,
       discount: plan.discount,
       name: plan.name,
       price: plan.price,
     });
-    subscriptionPlan.refetch();
+    toast.success("Plan added successfully");
+    setAddPlanOpen(false);
+    subscriptionPlanRefetch();
   };
 
-  const handleRemovePlans = (selected: SubscriptionPlan[]) => {
-    selected.forEach((s) => {
-      deleteMutate(s.id);
-    });
+  const handleRemovePlans = async (selected: SubscriptionPlan[]) => {
+    for (const s of selected) {
+      await deleteMutate(s.id);
+      toast.success(`Plan "${s.name}" deleted successfully`);
+      subscriptionPlanRefetch();
+      setManagePlanOpen(false);
+    }
   };
 
   const handleExtend = async () => {
@@ -129,11 +149,12 @@ export const Subscriptions = () => {
 
     try {
       await extendSubscriptionMutation.mutateAsync({
-        userId: extendDialog.subscription.user, // assuming user ID is here
+        userId: extendDialog.subscription.user,
         days: parseInt(extendDialog.extendDays),
       });
 
       refetch();
+      toast.success("Subscription extended successfully");
       setExtendDialog({
         open: false,
         subscription: null,
@@ -141,15 +162,65 @@ export const Subscriptions = () => {
       });
     } catch (error) {
       console.error("Failed to extend subscription:", error);
+      toast.error("Failed to extend subscription");
     }
+  };
+
+  const handlePausePlay = (indexOnPage: number, action: "pause" | "play") => {
+    const sub = pageData[indexOnPage];
+    if (sub) {
+      setConfirmDialog({
+        type: "pause",
+        index: indexOnPage,
+        action: action,
+      });
+    }
+  };
+
+  const handlePausePlayConfirm = () => {
+    if (!confirmDialog || confirmDialog.type !== "pause" || !confirmDialog.action) return;
+    
+    const sub = pageData[confirmDialog.index];
+    if (sub) {
+      pauseSubscription(
+        {
+          subscriptionId: sub.id,
+          is_active: confirmDialog.action === "play", // play = true, pause = false
+        },
+        {
+          onSuccess: () => {
+            toast.success(
+              `Subscription ${confirmDialog.action === "play" ? "resumed" : "paused"} successfully`
+            );
+            refetch();
+            setConfirmDialog(null);
+          },
+          onError: (error) => {
+            console.error(`Failed to ${confirmDialog.action} subscription:`, error);
+            toast.error(`Failed to ${confirmDialog.action} subscription`);
+          },
+        }
+      );
+    }
+  };
+
+  const handleDeleteSubscription = (subscriptionId: number) => {
+    deleteSubscription(subscriptionId, {
+      onSuccess() {
+        toast.success("Subscription deleted successfully");
+        refetch();
+      },
+      onError(error) {
+        console.error("Failed to delete subscription:", error);
+        toast.error("Failed to delete subscription");
+      },
+    });
   };
 
   const handleDelete = (indexOnPage: number) => {
     const sub = pageData[indexOnPage];
     if (sub) {
-      // TODO: call real delete subscription API if you have one
-      console.log("Deleting subscription:", sub.id);
-      refetch();
+      handleDeleteSubscription(sub.id);
     }
     setConfirmDialog(null);
   };
@@ -190,7 +261,7 @@ export const Subscriptions = () => {
                 All Plans
               </DropdownMenuItem>
 
-              {subscriptionPlan?.data?.results?.map((plan) => (
+              {subscriptionPlan?.results?.map((plan) => (
                 <DropdownMenuItem
                   key={plan.id}
                   onClick={() => {
@@ -223,10 +294,10 @@ export const Subscriptions = () => {
                 <DialogTitle>Manage Plans</DialogTitle>
               </DialogHeader>
               <ManagePlan
-                plans={subscriptionPlan.data?.results || []}
+                plans={subscriptionPlan?.results || []}
                 onRemove={handleRemovePlans}
                 onClose={() => setManagePlanOpen(false)}
-                removing={deleting}
+                removing={isDeleting}
               />
             </DialogContent>
           </Dialog>
@@ -270,7 +341,9 @@ export const Subscriptions = () => {
                 <TableHead>ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead className="text-center">Subscription Status</TableHead>
+                <TableHead className="text-center">
+                  Subscription Status
+                </TableHead>
                 <TableHead>Start Date</TableHead>
                 <TableHead>End Date</TableHead>
                 <TableHead>Plan Name</TableHead>
@@ -281,108 +354,154 @@ export const Subscriptions = () => {
             </TableHeader>
 
             <TableBody>
-              {subsLoading ? (
-                // Skeleton rows while loading
-                Array.from({ length: itemsPerPage }).map((_, index) => (
-                  <TableRow key={index} className="border-none">
-                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-8 w-8 rounded-full" />
-                        <Skeleton className="h-5 w-32" />
-                      </div>
-                    </TableCell>
-                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                    <TableCell>
-                      <Skeleton className="h-6 w-24 mx-auto rounded-full" />
-                    </TableCell>
-                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                    <TableCell>
-                      <div className="flex gap-2 justify-center">
-                        <Skeleton className="h-8 w-8 rounded" />
-                        <Skeleton className="h-8 w-8 rounded" />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                pageData?.map((row, idx) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{(page - 1) * itemsPerPage + idx + 1}</TableCell>
-                    <TableCell>{row.user}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                            avatarBg[(row.user ?? 0) % avatarBg.length]
-                          }`}
-                        >
-                          {row.user_name?.charAt(0)?.toUpperCase() || "?"}
+              {subsLoading
+                ? Array.from({ length: itemsPerPage }).map((_, index) => (
+                    <TableRow key={index} className="border-none">
+                      <TableCell>
+                        <Skeleton className="h-5 w-12" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-5 w-16" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                          <Skeleton className="h-5 w-32" />
                         </div>
-                        {row.user_name?.slice(0, 1).toUpperCase() + row.user_name?.slice(1) || "—"}
-                      </div>
-                    </TableCell>
-                    <TableCell>{row.user_email}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        variant={row.status === "active" ? "secondary" : "destructive"}
-                        className={row.status === "active" ? "bg-green-500 text-white" : ""}
-                      >
-                        {row.status?.toUpperCase() || "UNKNOWN"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {row.start_date ? format(new Date(row.start_date), "yyyy-MM-dd") : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {row.end_date ? format(new Date(row.end_date), "yyyy-MM-dd") : "—"}
-                    </TableCell>
-                    <TableCell>{row.plan_name || "—"}</TableCell>
-                    <TableCell className="flex gap-2 justify-center">
-                      {/* Extend */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          setExtendDialog({
-                            open: true,
-                            subscription: row,
-                            extendDays: "30",
-                          })
-                        }
-                        disabled={extendSubscriptionMutation.isPending}
-                      >
-                        <svg
-                          width="27"
-                          height="18"
-                          viewBox="0 0 27 18"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-5 w-48" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-6 w-24 mx-auto rounded-full" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-5 w-28" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-5 w-28" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-5 w-40" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2 justify-center">
+                          <Skeleton className="h-8 w-8 rounded" />
+                          <Skeleton className="h-8 w-8 rounded" />
+                          <Skeleton className="h-8 w-8 rounded" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                : pageData?.map((row, idx) => (
+                    <TableRow key={row.id}>
+                      <TableCell>
+                        {(page - 1) * itemsPerPage + idx + 1}
+                      </TableCell>
+                      <TableCell>{row.user}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
+                              avatarBg[(row.user ?? 0) % avatarBg.length]
+                            }`}
+                          >
+                            {row.user_name?.charAt(0)?.toUpperCase() || "?"}
+                          </div>
+                          {row.user_name?.slice(0, 1).toUpperCase() +
+                            row.user_name?.slice(1) || "—"}
+                        </div>
+                      </TableCell>
+                      <TableCell>{row.user_email}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge
+                          variant={
+                            row.status === "active" ? "secondary" : "destructive"
+                          }
+                          className={
+                            row.status === "active"
+                              ? "bg-green-500 text-white"
+                              : ""
+                          }
                         >
-                          <path
-                            d="M5.66667 9.32911C6.95467 9.32911 8 10.3744 8 11.6624V14.9958C8 15.6146 7.75417 16.2081 7.31658 16.6457C6.879 17.0833 6.28551 17.3291 5.66667 17.3291H2.33333C1.7145 17.3291 1.121 17.0833 0.683418 16.6457C0.245833 16.2081 0 15.6146 0 14.9958V11.6624C0 10.3744 1.04533 9.32911 2.33333 9.32911H5.66667ZM15 9.32911C16.288 9.32911 17.3333 10.3744 17.3333 11.6624V14.9958C17.3333 15.6146 17.0875 16.2081 16.6499 16.6457C16.2123 17.0833 15.6188 17.3291 15 17.3291H11.6667C11.0478 17.3291 10.4543 17.0833 10.0168 16.6457C9.57917 16.2081 9.33333 15.6146 9.33333 14.9958V11.6624C9.33333 10.3744 10.3787 9.32911 11.6667 9.32911H15ZM24.3333 9.32911C25.6213 9.32911 26.6667 10.3744 26.6667 11.6624V14.9958C26.6667 15.6146 26.4208 16.2081 25.9833 16.6457C25.5457 17.0833 24.9522 17.3291 24.3333 17.3291H21C20.3812 17.3291 19.7877 17.0833 19.3501 16.6457C18.9125 16.2081 18.6667 15.6146 18.6667 14.9958V11.6624C18.6667 10.3744 19.712 9.32911 21 9.32911H24.3333ZM5.66667 11.3291H2.33333C2.24493 11.3291 2.16014 11.3642 2.09763 11.4267C2.03512 11.4893 2 11.574 2 11.6624V14.9958C2 15.1811 2.14933 15.3291 2.33333 15.3291H5.66667C5.75507 15.3291 5.83986 15.294 5.90237 15.2315C5.96488 15.169 6 15.0842 6 14.9958V11.6624C6 11.574 5.96488 11.4893 5.90237 11.4267C5.83986 11.3642 5.75507 11.3291 5.66667 11.3291ZM15 11.3291H11.6667C11.5783 11.3291 11.4935 11.3642 11.431 11.4267C11.3685 11.4893 11.3333 11.574 11.3333 11.6624V14.9958C11.3333 15.1811 11.4827 15.3291 11.6667 15.3291H15C15.0884 15.3291 15.1732 15.294 15.2357 15.2315C15.2982 15.169 15.3333 15.0842 15.3333 14.9958V11.6624C15.3333 11.574 15.2982 11.4893 15.2357 11.4267C15.1732 11.3642 15.0884 11.3291 15 11.3291ZM24.3333 11.3291H21C20.9116 11.3291 20.8268 11.3642 20.7643 11.4267C20.7018 11.4893 20.6667 11.574 20.6667 11.6624V14.9958C20.6667 15.1811 20.816 15.3291 21 15.3291H24.3333C24.4217 15.3291 24.5065 15.294 24.569 15.2315C24.6316 15.169 24.6667 15.0842 24.6667 14.9958V11.6624C24.6667 11.574 24.6316 11.4893 24.569 11.4267C24.5065 11.3642 24.4217 11.3291 24.3333 11.3291ZM7.96 4.95978L12.6267 0.29311C12.7944 0.125324 13.0162 0.0226104 13.2526 0.00331514C13.4891 -0.0159801 13.7247 0.0493995 13.9173 0.187777L14.0307 0.282444L18.8333 4.94911C19.014 5.12508 19.1214 5.36278 19.1342 5.61462C19.147 5.86646 19.0642 6.11384 18.9024 6.30721C18.7405 6.50058 18.5116 6.62567 18.2614 6.65742C18.0113 6.68918 17.7584 6.62525 17.5533 6.47844L17.44 6.38378L13.344 2.40378L9.37333 6.37311C9.19467 6.55039 8.95572 6.65377 8.70419 6.66263C8.45265 6.67149 8.20703 6.58517 8.01633 6.4209C7.82564 6.25663 7.7039 6.02649 7.67542 5.77642C7.64693 5.52634 7.7138 5.27472 7.86267 5.07178L7.96 4.95978Z"
-                            fill="#0067D8"
-                          />
-                        </svg>
-                      </Button>
+                          {row.status?.toUpperCase() || "UNKNOWN"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {row.start_date
+                          ? format(new Date(row.start_date), "yyyy-MM-dd")
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {row.end_date
+                          ? format(new Date(row.end_date), "yyyy-MM-dd")
+                          : "—"}
+                      </TableCell>
+                      <TableCell>{row.plan_name || "—"}</TableCell>
+                      <TableCell className="flex gap-2 justify-center">
+                        {/* Play/Pause Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            handlePausePlay(
+                              idx,
+                              row.is_active ? "pause" : "play"
+                            )
+                          }
+                          disabled={isPausing}
+                          title={row.is_active ? "Pause Subscription" : "Resume Subscription"}
+                        >
+                          {row.is_active ? (
+                            <Pause className="w-4 h-4 text-yellow-500" />
+                          ) : (
+                            <Play className="w-4 h-4 text-green-500" />
+                          )}
+                        </Button>
 
-                      {/* Delete */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          setConfirmDialog({ type: "delete", index: idx })
-                        }
-                      >
-                        <Trash className="w-4 h-4 text-red-500" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+                        {/* Extend */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setExtendDialog({
+                              open: true,
+                              subscription: row,
+                              extendDays: "30",
+                            })
+                          }
+                          disabled={extendSubscriptionMutation.isPending}
+                          title="Extend Subscription"
+                        >
+                          <svg
+                            width="27"
+                            height="18"
+                            viewBox="0 0 27 18"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M5.66667 9.32911C6.95467 9.32911 8 10.3744 8 11.6624V14.9958C8 15.6146 7.75417 16.2081 7.31658 16.6457C6.879 17.0833 6.28551 17.3291 5.66667 17.3291H2.33333C1.7145 17.3291 1.121 17.0833 0.683418 16.6457C0.245833 16.2081 0 15.6146 0 14.9958V11.6624C0 10.3744 1.04533 9.32911 2.33333 9.32911H5.66667ZM15 9.32911C16.288 9.32911 17.3333 10.3744 17.3333 11.6624V14.9958C17.3333 15.6146 17.0875 16.2081 16.6499 16.6457C16.2123 17.0833 15.6188 17.3291 15 17.3291H11.6667C11.0478 17.3291 10.4543 17.0833 10.0168 16.6457C9.57917 16.2081 9.33333 15.6146 9.33333 14.9958V11.6624C9.33333 10.3744 10.3787 9.32911 11.6667 9.32911H15ZM24.3333 9.32911C25.6213 9.32911 26.6667 10.3744 26.6667 11.6624V14.9958C26.6667 15.6146 26.4208 16.2081 25.9833 16.6457C25.5457 17.0833 24.9522 17.3291 24.3333 17.3291H21C20.3812 17.3291 19.7877 17.0833 19.3501 16.6457C18.9125 16.2081 18.6667 15.6146 18.6667 14.9958V11.6624C18.6667 10.3744 19.712 9.32911 21 9.32911H24.3333ZM5.66667 11.3291H2.33333C2.24493 11.3291 2.16014 11.3642 2.09763 11.4267C2.03512 11.4893 2 11.574 2 11.6624V14.9958C2 15.1811 2.14933 15.3291 2.33333 15.3291H5.66667C5.75507 15.3291 5.83986 15.294 5.90237 15.2315C5.96488 15.169 6 15.0842 6 14.9958V11.6624C6 11.574 5.96488 11.4893 5.90237 11.4267C5.83986 11.3642 5.75507 11.3291 5.66667 11.3291ZM15 11.3291H11.6667C11.5783 11.3291 11.4935 11.3642 11.431 11.4267C11.3685 11.4893 11.3333 11.574 11.3333 11.6624V14.9958C11.3333 15.1811 11.4827 15.3291 11.6667 15.3291H15C15.0884 15.3291 15.1732 15.294 15.2357 15.2315C15.2982 15.169 15.3333 15.0842 15.3333 14.9958V11.6624C15.3333 11.574 15.2982 11.4893 15.2357 11.4267C15.1732 11.3642 15.0884 11.3291 15 11.3291ZM24.3333 11.3291H21C20.9116 11.3291 20.8268 11.3642 20.7643 11.4267C20.7018 11.4893 20.6667 11.574 20.6667 11.6624V14.9958C20.6667 15.1811 20.816 15.3291 21 15.3291H24.3333C24.4217 15.3291 24.5065 15.294 24.569 15.2315C24.6316 15.169 24.6667 15.0842 24.6667 14.9958V11.6624C24.6667 11.574 24.6316 11.4893 24.569 11.4267C24.5065 11.3642 24.4217 11.3291 24.3333 11.3291ZM7.96 4.95978L12.6267 0.29311C12.7944 0.125324 13.0162 0.0226104 13.2526 0.00331514C13.4891 -0.0159801 13.7247 0.0493995 13.9173 0.187777L14.0307 0.282444L18.8333 4.94911C19.014 5.12508 19.1214 5.36278 19.1342 5.61462C19.147 5.86646 19.0642 6.11384 18.9024 6.30721C18.7405 6.50058 18.5116 6.62567 18.2614 6.65742C18.0113 6.68918 17.7584 6.62525 17.5533 6.47844L17.44 6.38378L13.344 2.40378L9.37333 6.37311C9.19467 6.55039 8.95572 6.65377 8.70419 6.66263C8.45265 6.67149 8.20703 6.58517 8.01633 6.4209C7.82564 6.25663 7.7039 6.02649 7.67542 5.77642C7.64693 5.52634 7.7138 5.27472 7.86267 5.07178L7.96 4.95978Z"
+                              fill="#0067D8"
+                            />
+                          </svg>
+                        </Button>
+
+                        {/* Delete */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setConfirmDialog({ type: "delete", index: idx })
+                          }
+                          disabled={isSubscriptionDeleting}
+                          title="Delete Subscription"
+                        >
+                          <Trash className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
             </TableBody>
           </Table>
         </CardContent>
@@ -438,7 +557,7 @@ export const Subscriptions = () => {
                   <Input
                     value={format(
                       new Date(extendDialog.subscription.start_date),
-                      "yyyy-MM-dd"
+                      "yyyy-MM-dd",
                     )}
                     className="bg-primary/20"
                     disabled
@@ -449,7 +568,7 @@ export const Subscriptions = () => {
                   <Input
                     value={format(
                       new Date(extendDialog.subscription.end_date),
-                      "yyyy-MM-dd"
+                      "yyyy-MM-dd",
                     )}
                     className="bg-primary/20"
                     disabled
@@ -518,7 +637,9 @@ export const Subscriptions = () => {
                   onClick={handleExtend}
                   disabled={extendSubscriptionMutation.isPending}
                 >
-                  {extendSubscriptionMutation.isPending ? "Extending..." : "Extend"}
+                  {extendSubscriptionMutation.isPending
+                    ? "Extending..."
+                    : "Extend"}
                 </Button>
               </div>
             </div>
@@ -526,13 +647,17 @@ export const Subscriptions = () => {
         </Dialog>
       )}
 
-      {/* Confirm Dialog (Delete) */}
+      {/* Confirm Dialog (Delete/Pause/Play) */}
       {confirmDialog && (
         <Dialog open onOpenChange={() => setConfirmDialog(null)}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="text-center">
-                Delete Subscription?
+                {confirmDialog.type === "delete" 
+                  ? "Delete Subscription?" 
+                  : confirmDialog.action === "play"
+                  ? "Resume Subscription?"
+                  : "Pause Subscription?"}
               </DialogTitle>
             </DialogHeader>
 
@@ -542,12 +667,22 @@ export const Subscriptions = () => {
               </Button>
               <Button
                 onClick={() => {
-                  if (confirmDialog.type === "delete")
+                  if (confirmDialog.type === "delete") {
                     handleDelete(confirmDialog.index);
+                  } else if (confirmDialog.type === "pause") {
+                    handlePausePlayConfirm();
+                  }
                 }}
-                variant="red"
+                variant={confirmDialog.type === "delete" ? "red" : "default"}
+                disabled={isPausing || isSubscriptionDeleting}
               >
-                Delete
+                {confirmDialog.type === "delete" 
+                  ? isSubscriptionDeleting ? "Deleting..." : "Delete"
+                  : isPausing 
+                  ? "Processing..." 
+                  : confirmDialog.action === "play"
+                  ? "Resume"
+                  : "Pause"}
               </Button>
             </div>
           </DialogContent>

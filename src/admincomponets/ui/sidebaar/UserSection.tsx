@@ -37,12 +37,12 @@ export const UserSection = () => {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent className="w-40">
-        <DropdownMenuItem
+        {/* <DropdownMenuItem
           className="flex items-center gap-2 border-b border-gray-200"
           onClick={() => router.push("/admin/profile")}
         >
           <UserCogIcon className="w-4 h-4" /> Profile
-        </DropdownMenuItem>
+        </DropdownMenuItem> */}
         <DropdownMenuItem
           className="flex items-center gap-2"
           onClick={() => {

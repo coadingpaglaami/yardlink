@@ -21,6 +21,7 @@ export interface Subscription {
   status: "active" | "inactive"; // Status of the subscription
   start_date: string; // Subscription start date
   end_date: string; // Subscription end date
+  is_active: boolean; // Whether the subscription is currently active
   remaining_days: number; // Days remaining in the subscription
   created_at: string; // Timestamp of when the subscription was created
 }

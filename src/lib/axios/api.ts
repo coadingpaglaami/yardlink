@@ -81,10 +81,24 @@ export const DeletePlan = (planId: number): Promise<void> => {
   return axiosInstance.delete(`${ADMIN}/plans/${planId}/delete/`);
 };
 
-export const DeleteSubscriptionPlan = (
+export const DeleteUserSubscriptionPlan = (
   subscripitonId: number,
 ): Promise<void> => {
-  return axiosInstance.delete(`subscriptions/${subscripitonId}/delete/`);
+  return axiosInstance.delete(
+    `${ADMIN}/subscription/${subscripitonId}/delete/`,
+  );
+};
+
+export const PauseUserSubscription = async ({
+  subscriptionId,
+  is_active,
+}: {
+  subscriptionId: number;
+  is_active: boolean;
+}): Promise<void> => {
+  return axiosInstance.patch(`${ADMIN}/subscription/${subscriptionId}/pause/`, {
+    is_active,
+  });
 };
 
 export const ListOfSubscriptions = async (
@@ -182,10 +196,10 @@ export const getSubscriptionRatio = async (): Promise<SubscriptionRatio> => {
 
 // STRIPE MONTHLY OVERVIEW
 export const getStripeOverview = async <T extends Period>(
-  period: T
+  period: T,
 ): Promise<OverviewMap[T]> => {
   const { data } = await axiosInstance.get(
-    `${ADMIN}/stripe/monthly-overview/?period=${period}`
+    `${ADMIN}/stripe/monthly-overview/?period=${period}`,
   );
 
   return data;
