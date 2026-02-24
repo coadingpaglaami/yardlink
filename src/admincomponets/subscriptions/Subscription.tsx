@@ -66,7 +66,7 @@ export const Subscriptions = () => {
   const [filter, setFilter] = useState<string>("All");
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
-  
+
   const { mutate: deleteSubscription, isPending: isSubscriptionDeleting } =
     useDeleteSubscriptionPlanMutation();
   const { mutate: pauseSubscription, isPending: isPausing } =
@@ -149,7 +149,7 @@ export const Subscriptions = () => {
 
     try {
       await extendSubscriptionMutation.mutateAsync({
-        userId: extendDialog.subscription.user,
+        userId: extendDialog.subscription.plan,
         days: parseInt(extendDialog.extendDays),
       });
 
@@ -178,8 +178,13 @@ export const Subscriptions = () => {
   };
 
   const handlePausePlayConfirm = () => {
-    if (!confirmDialog || confirmDialog.type !== "pause" || !confirmDialog.action) return;
-    
+    if (
+      !confirmDialog ||
+      confirmDialog.type !== "pause" ||
+      !confirmDialog.action
+    )
+      return;
+
     const sub = pageData[confirmDialog.index];
     if (sub) {
       pauseSubscription(
@@ -190,16 +195,19 @@ export const Subscriptions = () => {
         {
           onSuccess: () => {
             toast.success(
-              `Subscription ${confirmDialog.action === "play" ? "resumed" : "paused"} successfully`
+              `Subscription ${confirmDialog.action === "play" ? "resumed" : "paused"} successfully`,
             );
             refetch();
             setConfirmDialog(null);
           },
           onError: (error) => {
-            console.error(`Failed to ${confirmDialog.action} subscription:`, error);
+            console.error(
+              `Failed to ${confirmDialog.action} subscription:`,
+              error,
+            );
             toast.error(`Failed to ${confirmDialog.action} subscription`);
           },
-        }
+        },
       );
     }
   };
@@ -416,7 +424,9 @@ export const Subscriptions = () => {
                       <TableCell className="text-center">
                         <Badge
                           variant={
-                            row.status === "active" ? "secondary" : "destructive"
+                            row.status === "active"
+                              ? "secondary"
+                              : "destructive"
                           }
                           className={
                             row.status === "active"
@@ -446,11 +456,15 @@ export const Subscriptions = () => {
                           onClick={() =>
                             handlePausePlay(
                               idx,
-                              row.is_active ? "pause" : "play"
+                              row.is_active ? "pause" : "play",
                             )
                           }
                           disabled={isPausing}
-                          title={row.is_active ? "Pause Subscription" : "Resume Subscription"}
+                          title={
+                            row.is_active
+                              ? "Pause Subscription"
+                              : "Resume Subscription"
+                          }
                         >
                           {row.is_active ? (
                             <Pause className="w-4 h-4 text-yellow-500" />
@@ -653,11 +667,11 @@ export const Subscriptions = () => {
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="text-center">
-                {confirmDialog.type === "delete" 
-                  ? "Delete Subscription?" 
+                {confirmDialog.type === "delete"
+                  ? "Delete Subscription?"
                   : confirmDialog.action === "play"
-                  ? "Resume Subscription?"
-                  : "Pause Subscription?"}
+                    ? "Resume Subscription?"
+                    : "Pause Subscription?"}
               </DialogTitle>
             </DialogHeader>
 
@@ -676,13 +690,15 @@ export const Subscriptions = () => {
                 variant={confirmDialog.type === "delete" ? "red" : "default"}
                 disabled={isPausing || isSubscriptionDeleting}
               >
-                {confirmDialog.type === "delete" 
-                  ? isSubscriptionDeleting ? "Deleting..." : "Delete"
-                  : isPausing 
-                  ? "Processing..." 
-                  : confirmDialog.action === "play"
-                  ? "Resume"
-                  : "Pause"}
+                {confirmDialog.type === "delete"
+                  ? isSubscriptionDeleting
+                    ? "Deleting..."
+                    : "Delete"
+                  : isPausing
+                    ? "Processing..."
+                    : confirmDialog.action === "play"
+                      ? "Resume"
+                      : "Pause"}
               </Button>
             </div>
           </DialogContent>
