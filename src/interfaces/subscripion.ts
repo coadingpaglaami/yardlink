@@ -18,7 +18,7 @@ export interface Subscription {
   user_email: string; // Email of the user
   plan: number; // ID of the subscription plan
   plan_name: string; // Name of the subscription plan
-  status: "active" | "inactive"; // Status of the subscription
+  status: "active" | "inactive" | "expired"; // Status of the subscription
   start_date: string; // Subscription start date
   end_date: string; // Subscription end date
   is_active: boolean; // Whether the subscription is currently active

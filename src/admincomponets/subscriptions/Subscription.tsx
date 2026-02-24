@@ -459,7 +459,7 @@ export const Subscriptions = () => {
                               row.is_active ? "pause" : "play",
                             )
                           }
-                          disabled={isPausing}
+                          disabled={isPausing || row.status === 'expired'}
                           title={
                             row.is_active
                               ? "Pause Subscription"
