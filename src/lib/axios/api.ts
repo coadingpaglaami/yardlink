@@ -85,7 +85,7 @@ export const DeleteUserSubscriptionPlan = (
   subscripitonId: number,
 ): Promise<void> => {
   return axiosInstance.delete(
-    `${ADMIN}/subscription/${subscripitonId}/delete/`,
+    `${ADMIN}/subscriptions/${subscripitonId}/delete/`,
   );
 };
 
